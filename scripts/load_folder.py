@@ -48,7 +48,7 @@ def load_folder(folder_path, experiment_name, recursive=True):
 
 if __name__ == "__main__":
     load_folder(
-        folder_path=r"C:\YandexDisk\Ioffe\workspace\one_decay\2D\data\sol\IC3_x0",
+        folder_path=r"C:\YandexDisk\Yandex.Disk\Ioffe\workspace\one_decay\2D\data\sol\IC3_x0",
         experiment_name="one_decay_parameters_scan_with_IC_dx=0p05",
         recursive=True
     )
