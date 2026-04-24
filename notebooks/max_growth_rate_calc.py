@@ -92,8 +92,8 @@ def _(mo):
     min_len_selector = mo.ui.slider(start=2, stop=50, value=3)
     max_len_selector = mo.ui.slider(start=4, stop=100, value=10)
 
-    tmin_selector = mo.ui.number(value=0.0, label="t_min")
-    tmax_selector = mo.ui.number(value=10.0, label="t_max")
+    tmin_selector = mo.ui.number(value=2.0, label="t_min")
+    tmax_selector = mo.ui.number(value=5.0, label="t_max")
 
     legend_position_selector = mo.ui.radio(
         options=["inside", "right", "outside"],
@@ -121,7 +121,11 @@ def _(np):
         tmin_internal,
         tmax_internal,
     ):
-        mask_internal = (y_arr_internal > 0) & (t_arr_internal <= tmax_internal)
+        mask_internal = (
+            (y_arr_internal > 0) &
+            (t_arr_internal >= tmin_internal) &
+            (t_arr_internal <= tmax_internal)
+       )
         t_arr_internal = t_arr_internal[mask_internal]
         y_arr_internal = y_arr_internal[mask_internal]
 
@@ -446,7 +450,6 @@ def _(
                     "gamma": slope_val,
                 }
             )
-
     return (increment_param_data,)
 
 
