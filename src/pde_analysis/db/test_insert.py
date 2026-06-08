@@ -11,10 +11,11 @@ experiment_id = cursor.lastrowid
 params = {"Lambda": 1.0}
 
 cursor.execute("""
-INSERT INTO runs (experiment_id, h5_path, params_json)
-VALUES (?, ?, ?)
+INSERT INTO runs (experiment_id, file_name, h5_path, params_json)
+VALUES (?, ?, ?, ?)
 """, (
     experiment_id,
+    "run_001.h5",
     "data/h5/run_001.h5",
     json.dumps(params)
 ))

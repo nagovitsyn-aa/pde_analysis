@@ -1,0 +1,4 @@
+folder: C:\YandexDisk\Yandex.Disk\Ioffe\workspace\one_decay\2D\data\sol\IC3_x0
+experiment: one_decay_parameters_scan_with_IC_dx=0p05
+dimension: 2D
+recursive: true

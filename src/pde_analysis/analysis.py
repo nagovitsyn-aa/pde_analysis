@@ -88,6 +88,46 @@ def compute_energy(data, field, t_min=None, t_max=None):
     return {"t": t, "W": energy}
 
 
+def compute_energy_1d(data, field, t_min=None, t_max=None):
+    """
+    Compute 1D energy from a 1D solution file.
+
+    field: "a" or "b"
+    """
+
+    if field == "a":
+        re = data["solution"]["aRe"]
+        im = data["solution"]["aIm"]
+    elif field == "b":
+        re = data["solution"]["bRe"]
+        im = data["solution"]["bIm"]
+    else:
+        raise ValueError("field must be 'a' or 'b'")
+
+    re = np.asarray(re)
+    im = np.asarray(im)
+    x = np.asarray(data["grid"]["x"]).ravel()
+    t = np.asarray(data["grid"]["t"]).ravel()
+
+    abs_sq = re**2 + im**2
+    if abs_sq.ndim != 2:
+        raise ValueError(f"Expected 2D data for 1D energy, got shape {abs_sq.shape}")
+
+    energy = simpson(abs_sq, x, axis=1)
+
+    if t_min is not None or t_max is not None:
+        mask = np.ones(t.shape, dtype=bool)
+        if t_min is not None:
+            mask &= t >= t_min
+        if t_max is not None:
+            mask &= t <= t_max
+
+        t = t[mask]
+        energy = energy[mask]
+
+    return {"t": t, "W": energy}
+
+
 import numpy as np
 
 

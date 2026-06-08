@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS runs (
     run_id INTEGER PRIMARY KEY,
     experiment_id INTEGER NOT NULL,
 
+    file_name TEXT NOT NULL,
     h5_path TEXT,
     params_json TEXT NOT NULL,
 
@@ -27,7 +28,7 @@ CREATE TABLE IF NOT EXISTS runs (
     FOREIGN KEY (experiment_id) REFERENCES experiments(experiment_id)
 );
 
-CREATE UNIQUE INDEX idx_runs_h5_path ON runs(h5_path);
+CREATE UNIQUE INDEX idx_runs_file_name ON runs(file_name);
 
 CREATE TABLE IF NOT EXISTS metric_definitions (
     metric_def_id INTEGER PRIMARY KEY,

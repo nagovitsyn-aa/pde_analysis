@@ -1,3 +1,5 @@
+from pathlib import Path
+
 def delete_run(conn, run_id):
     cursor = conn.cursor()
 
@@ -19,6 +21,12 @@ def recompute_metrics(conn, run_id):
     row = cursor.fetchone()
 
     h5_path, params_json = row
+    if not h5_path:
+        raise FileNotFoundError(f"HDF5 path not set for run {run_id}")
+
+    h5_path = Path(h5_path)
+    if not h5_path.exists():
+        raise FileNotFoundError(f"HDF5 file not found: {h5_path}")
 
     import json
     params = json.loads(params_json)
@@ -27,7 +35,7 @@ def recompute_metrics(conn, run_id):
     cursor.execute("DELETE FROM metrics WHERE run_id = ?", (run_id,))
 
     # пересчёт
-    ts = extract_timeseries(h5_path)
+    ts = extract_timeseries(str(h5_path))
     metrics = compute_metrics(ts, params)
 
     for name, value in metrics.items():

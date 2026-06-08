@@ -34,11 +34,12 @@ def add_run_from_h5(experiment_name: str, h5_path: str | Path):
     if not h5_path.exists():
         raise FileNotFoundError(f"HDF5 file not found: {h5_path}")
     
-    existing = run_exists(conn, str(h5_path))
+    file_name = h5_path.name
+    existing = run_exists(conn, file_name)
 
     if existing:
-        print(f"[SKIP] run already exists: {h5_path}")
-        return existing[0]
+        print(f"[SKIP] run already exists: {file_name}")
+        return None
 
     # --- 1. извлечение данных ---
     params = extract_params(h5_path)
@@ -59,13 +60,14 @@ def add_run_from_h5(experiment_name: str, h5_path: str | Path):
 
         # 3.2 run
         run_id = create_run(
-        conn=conn,
-        experiment_id=experiment_id,
-        params=params,
-        h5_path=str(h5_path),
-        status=status,
-        note=note
-)
+            conn=conn,
+            experiment_id=experiment_id,
+            params=params,
+            file_name=file_name,
+            h5_path=str(h5_path),
+            status=status,
+            note=note
+        )
 
         # 3.3 временные ряды
         for name, (t, y) in timeseries_dict.items():

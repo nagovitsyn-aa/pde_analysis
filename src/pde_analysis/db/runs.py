@@ -5,7 +5,8 @@ def create_run(
     conn,
     experiment_id,
     params,
-    h5_path,
+    file_name,
+    h5_path=None,
     status="success",
     note=None
 ):
@@ -17,6 +18,7 @@ def create_run(
     cursor.execute("""
         INSERT INTO runs (
             experiment_id,
+            file_name,
             h5_path,
             params_json,
             status,
@@ -30,9 +32,10 @@ def create_run(
             dx,
             dy
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
         experiment_id,
+        file_name,
         h5_path,
         json.dumps(params),
         status,
