@@ -1,0 +1,9 @@
+{
+	"servers": {
+		"marimo": {
+			"url": "https://mcp.marimo.app/mcp",
+			"type": "http"
+		}
+	},
+	"inputs": []
+}

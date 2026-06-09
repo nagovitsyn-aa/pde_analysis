@@ -1,7 +1,7 @@
 import marimo
 
 __generated_with = "0.23.2"
-app = marimo.App()
+app = marimo.App(layout_file="layouts/growth_rate_study_1d.grid.json")
 
 
 @app.cell
@@ -20,7 +20,7 @@ def _():
 @app.cell
 def _(mo):
     folder_ui = mo.ui.text(
-        value=r"C:\YandexDisk\Yandex.Disk\Ioffe\workspace\one_decay\1Dx\data\HDF5\w0x=1",
+        value=r"C:\YandexDisk\Yandex.Disk\Ioffe\workspace\one_decay\1Dx\data\HDF5\auto\w0x=0p5",
         label="data folder",
         full_width=True,
     )
@@ -49,8 +49,23 @@ def _(files, mo):
 
 
 @app.cell
-def _(compute_energy_1d, files_checkbox, load_h5_solver_file_1d, np):
+def _(filepath):
+    filepath
+    return
+
+
+@app.cell
+def _(
+    compute_energy_1d,
+    files_checkbox,
+    load_h5_solver_file_1d,
+    np,
+    tmax_selector,
+    tmin_selector,
+):
     results = []
+    t_range_min = min(tmin_selector.value, tmax_selector.value)
+    t_range_max = max(tmin_selector.value, tmax_selector.value)
 
     for filepath in files_checkbox.value:
         data = load_h5_solver_file_1d(filepath)
@@ -67,9 +82,19 @@ def _(compute_energy_1d, files_checkbox, load_h5_solver_file_1d, np):
 
         logW = np.log(W)
         dlogW = np.gradient(logW, t)
-        max_idx = int(np.nanargmax(dlogW))
-        max_increment = float(dlogW[max_idx])
-        t_max_increment = float(t[max_idx])
+        in_range = (t >= t_range_min) & (t <= t_range_max)
+        dlogW_in_range = dlogW[in_range]
+        t_in_range = t[in_range]
+
+        if len(dlogW_in_range) > 0 and np.isfinite(dlogW_in_range).any():
+            max_idx = int(np.nanargmax(dlogW_in_range))
+            max_increment = float(dlogW_in_range[max_idx])
+            t_max_increment = float(t_in_range[max_idx])
+        else:
+            max_idx = int(np.nanargmax(dlogW))
+            max_increment = float(dlogW[max_idx])
+            t_max_increment = float(t[max_idx])
+
         predicted_growth = float(np.exp(max_increment * (t[-1] - t[0])))
         actual_growth = float(W[-1] / W[0])
 
@@ -82,6 +107,7 @@ def _(compute_energy_1d, files_checkbox, load_h5_solver_file_1d, np):
                 "label": filepath.split("\\")[-1],
                 "u": u_value,
                 "t": t,
+                "Wa": W,
                 "logW": logW,
                 "dlogW": dlogW,
                 "max_increment": max_increment,
@@ -90,7 +116,7 @@ def _(compute_energy_1d, files_checkbox, load_h5_solver_file_1d, np):
                 "actual_growth": actual_growth,
             }
         )
-    return (results,)
+    return filepath, results
 
 
 @app.cell
@@ -119,18 +145,66 @@ def _(mo, results):
 
 
 @app.cell
-def _(plt, results, selected_label_ui, visible_ui):
-    _fig, _axs = plt.subplots(2, 1, figsize=(8, 8), sharex=True)
+def _(mo):
+    tmin_selector = mo.ui.number(value=0.0, step=0.1, label="t_min for d/dt plot")
+    tmax_selector = mo.ui.number(value=10.0, step=0.1, label="t_max for d/dt plot")
 
-    for item in results:
-        if item["label"] not in visible_ui.value:
+    ymin_selector = mo.ui.number(value=-1.0, label="y_min for d/dt plot")
+    ymax_selector = mo.ui.number(value=2.0, label="y_max for d/dt plot")
+
+    scale_selector = mo.ui.radio(
+        options=["linear", "log"],
+        value="linear",
+        label="scale for Wa plot",
+    )
+
+    legend_position_selector = mo.ui.radio(
+        options=["inside", "right", "outside"],
+        value="inside",
+        label="legend position",
+    )
+
+    c1_selector = mo.ui.number(value=1.6, step=0.01, label="C1 for level")
+
+    tmin_selector, tmax_selector, ymin_selector, ymax_selector, scale_selector, legend_position_selector, c1_selector
+    return (
+        c1_selector,
+        legend_position_selector,
+        scale_selector,
+        tmax_selector,
+        tmin_selector,
+        ymax_selector,
+        ymin_selector,
+    )
+
+
+@app.cell
+def _(
+    legend_position_selector,
+    plt,
+    results,
+    scale_selector,
+    selected_label_ui,
+    tmax_selector,
+    tmin_selector,
+    visible_ui,
+    ymax_selector,
+    ymin_selector,
+):
+    fig_logs, axs_logs = plt.subplots(2, 1, figsize=(8, 8), sharex=False)
+
+    for _item in results:
+        if _item["label"] not in visible_ui.value:
             continue
-        _axs[0].plot(item["t"], item["logW"], label=item["label"])
-        _axs[1].plot(item["t"], item["dlogW"], label=item["label"])
+        axs_logs[0].plot(_item["t"], _item["Wa"], label=_item["label"])
+
+        # Apply time range to d/dt plot
+        mask = (_item["t"] >= tmin_selector.value) & (_item["t"] <= tmax_selector.value)
+        axs_logs[1].plot(_item["t"][mask], _item["dlogW"][mask], label=_item["label"])
 
     selected = next((item for item in results if item["label"] == selected_label_ui.value), None)
     if selected is not None:
-        _axs[1].scatter(
+        axs_logs[1].scatter(
             [selected["t_max_increment"]],
             [selected["max_increment"]],
             color="red",
@@ -139,39 +213,102 @@ def _(plt, results, selected_label_ui, visible_ui):
             label=f"max increment {selected['label']}",
         )
 
-    _axs[0].set_ylabel("log Wa")
-    _axs[1].set_ylabel("d/dt log Wa")
-    _axs[1].set_xlabel("t")
+    axs_logs[0].set_ylabel("Wa")
+    axs_logs[1].set_ylabel("d/dt log Wa")
+    axs_logs[1].set_xlabel("t")
 
-    _axs[0].grid(True)
-    _axs[1].grid(True)
-    _axs[0].legend()
-    _axs[1].legend()
-    _fig.tight_layout()
+    if scale_selector.value == "log":
+        axs_logs[0].set_yscale("log")
 
-    _fig
+    axs_logs[0].grid(True)
+    axs_logs[1].grid(True)
+
+    # Apply y-axis limits to d/dt plot
+    axs_logs[1].set_ylim(ymin_selector.value, ymax_selector.value)
+
+    if legend_position_selector.value == "inside":
+        axs_logs[0].legend()
+        axs_logs[1].legend()
+    elif legend_position_selector.value == "right":
+        axs_logs[0].legend(loc="center left", bbox_to_anchor=(1, 0.5))
+        axs_logs[1].legend(loc="center left", bbox_to_anchor=(1, 0.5))
+    else:
+        axs_logs[0].legend(loc="upper left", bbox_to_anchor=(1.05, 1))
+        axs_logs[1].legend(loc="upper left", bbox_to_anchor=(1.05, 1))
+
+    fig_logs.tight_layout()
+
+    fig_logs
     return
 
 
 @app.cell
 def _(plt, results, visible_ui):
-    _fig, _ax = plt.subplots(figsize=(8, 5))
+    fig_vs_u, ax_vs_u = plt.subplots(figsize=(8, 5))
 
-    scatter_data = [item for item in results if item["label"] in visible_ui.value and item["u"] is not None]
+    scatter_data = [_item for _item in results if _item["label"] in visible_ui.value and _item["u"] is not None]
     scatter_data.sort(key=lambda x: x["u"])
 
     if scatter_data:
-        u_values = [item["u"] for item in scatter_data]
-        increments = [item["max_increment"] for item in scatter_data]
-        _ax.plot(u_values, increments, marker="o", linestyle="-", label="max increment")
+        u_values = [_item["u"] for _item in scatter_data]
+        increments = [_item["max_increment"] for _item in scatter_data]
+        ax_vs_u.plot(u_values, increments, marker="o", linestyle="-", label="max increment")
 
-    _ax.set_xlabel("u")
-    _ax.set_ylabel("max increment")
-    _ax.grid(True)
-    _ax.legend()
-    _fig.tight_layout()
+    ax_vs_u.set_xlabel("u")
+    ax_vs_u.set_ylabel("max increment")
+    ax_vs_u.grid(True)
+    ax_vs_u.legend()
+    fig_vs_u.tight_layout()
 
-    _fig
+    fig_vs_u
+    return
+
+
+@app.cell
+def _(
+    c1_selector,
+    legend_position_selector,
+    np,
+    plt,
+    results,
+    scale_selector,
+    visible_ui,
+):
+    fig_with_level, ax_with_level = plt.subplots(figsize=(8, 5))
+
+    for _item in results:
+        if _item["label"] not in visible_ui.value:
+            continue
+        ax_with_level.plot(_item["t"], _item["Wa"], label=_item["label"])
+
+        # Draw level if u is available
+        if _item["u"] is not None:
+            u_val = _item["u"]
+            level_val = np.exp(2 * np.pi / (u_val ** 2) + c1_selector.value)
+            ax_with_level.axhline(
+                level_val,
+                linestyle="--",
+                alpha=0.6,
+                label=f"level u={u_val:.3f}",
+            )
+
+    ax_with_level.set_xlabel("t")
+    ax_with_level.set_ylabel("Wa")
+
+    if scale_selector.value == "log":
+        ax_with_level.set_yscale("log")
+
+    ax_with_level.grid(True)
+
+    if legend_position_selector.value == "inside":
+        ax_with_level.legend()
+    elif legend_position_selector.value == "right":
+        ax_with_level.legend(loc="center left", bbox_to_anchor=(1, 0.5))
+    else:
+        ax_with_level.legend(loc="upper left", bbox_to_anchor=(1.05, 1))
+
+    fig_with_level.tight_layout()
+    fig_with_level
     return
 
 
