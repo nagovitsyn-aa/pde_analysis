@@ -49,8 +49,7 @@ def _(files, mo):
 
 
 @app.cell
-def _(filepath):
-    filepath
+def _():
     return
 
 
@@ -87,15 +86,15 @@ def _(
         t_in_range = t[in_range]
 
         if len(dlogW_in_range) > 0 and np.isfinite(dlogW_in_range).any():
-            max_idx = int(np.nanargmax(dlogW_in_range))
-            max_increment = float(dlogW_in_range[max_idx])
-            t_max_increment = float(t_in_range[max_idx])
+            growth_rate_idx = int(np.nanargmax(dlogW_in_range))
+            growth_rate = float(dlogW_in_range[growth_rate_idx])
+            t_growth_rate_max = float(t_in_range[growth_rate_idx])
         else:
-            max_idx = int(np.nanargmax(dlogW))
-            max_increment = float(dlogW[max_idx])
-            t_max_increment = float(t[max_idx])
+            growth_rate_idx = int(np.nanargmax(dlogW))
+            growth_rate = float(dlogW[growth_rate_idx])
+            t_growth_rate_max = float(t[growth_rate_idx])
 
-        predicted_growth = float(np.exp(max_increment * (t[-1] - t[0])))
+        predicted_growth = float(np.exp(growth_rate * (t[-1] - t[0])))
         actual_growth = float(W[-1] / W[0])
 
         params = data.get("parameters", {})
@@ -110,13 +109,13 @@ def _(
                 "Wa": W,
                 "logW": logW,
                 "dlogW": dlogW,
-                "max_increment": max_increment,
-                "t_max_increment": t_max_increment,
+                "growth_rate": growth_rate,
+                "t_growth_rate_max": t_growth_rate_max,
                 "predicted_growth": predicted_growth,
                 "actual_growth": actual_growth,
             }
         )
-    return filepath, results
+    return (results,)
 
 
 @app.cell
@@ -159,16 +158,18 @@ def _(mo):
     )
 
     legend_position_selector = mo.ui.radio(
-        options=["inside", "right", "outside"],
+        options=["inside", "right", "below", "outside"],
         value="inside",
         label="legend position",
     )
 
     c1_selector = mo.ui.number(value=1.6, step=0.01, label="C1 for level")
+    c2_selector = mo.ui.number(value=1.6, step=0.01, label="C2 for level")
 
-    tmin_selector, tmax_selector, ymin_selector, ymax_selector, scale_selector, legend_position_selector, c1_selector
+    tmin_selector, tmax_selector, ymin_selector, ymax_selector, scale_selector, legend_position_selector, c1_selector, c2_selector
     return (
         c1_selector,
+        c2_selector,
         legend_position_selector,
         scale_selector,
         tmax_selector,
@@ -183,7 +184,6 @@ def _(
     legend_position_selector,
     plt,
     results,
-    scale_selector,
     selected_label_ui,
     tmax_selector,
     tmin_selector,
@@ -191,52 +191,43 @@ def _(
     ymax_selector,
     ymin_selector,
 ):
-    fig_logs, axs_logs = plt.subplots(2, 1, figsize=(8, 8), sharex=False)
+    fig_logs, ax_logs = plt.subplots(figsize=(8, 5))
 
     for _item in results:
         if _item["label"] not in visible_ui.value:
             continue
-        axs_logs[0].plot(_item["t"], _item["Wa"], label=_item["label"])
-
-        # Apply time range to d/dt plot
         mask = (_item["t"] >= tmin_selector.value) & (_item["t"] <= tmax_selector.value)
-        axs_logs[1].plot(_item["t"][mask], _item["dlogW"][mask], label=_item["label"])
+        ax_logs.plot(_item["t"][mask], _item["dlogW"][mask], label=_item["label"])
 
     selected = next((item for item in results if item["label"] == selected_label_ui.value), None)
     if selected is not None:
-        axs_logs[1].scatter(
-            [selected["t_max_increment"]],
-            [selected["max_increment"]],
+        ax_logs.scatter(
+            [selected["t_growth_rate_max"]],
+            [selected["growth_rate"]],
             color="red",
             marker="x",
             s=80,
-            label=f"max increment {selected['label']}",
+            label=f"growth rate {selected['label']}",
         )
 
-    axs_logs[0].set_ylabel("Wa")
-    axs_logs[1].set_ylabel("d/dt log Wa")
-    axs_logs[1].set_xlabel("t")
-
-    if scale_selector.value == "log":
-        axs_logs[0].set_yscale("log")
-
-    axs_logs[0].grid(True)
-    axs_logs[1].grid(True)
-
-    # Apply y-axis limits to d/dt plot
-    axs_logs[1].set_ylim(ymin_selector.value, ymax_selector.value)
+    ax_logs.set_ylabel("d/dt log Wa")
+    ax_logs.set_xlabel(r"$\nu_0 t$")
+    ax_logs.grid(True)
+    ax_logs.set_ylim(ymin_selector.value, ymax_selector.value)
 
     if legend_position_selector.value == "inside":
-        axs_logs[0].legend()
-        axs_logs[1].legend()
+        ax_logs.legend()
     elif legend_position_selector.value == "right":
-        axs_logs[0].legend(loc="center left", bbox_to_anchor=(1, 0.5))
-        axs_logs[1].legend(loc="center left", bbox_to_anchor=(1, 0.5))
+        ax_logs.legend(loc="center left", bbox_to_anchor=(1, 0.5))
+    elif legend_position_selector.value == "below":
+        ax_logs.legend(loc="upper center", bbox_to_anchor=(0.5, -0.18), ncol=2)
     else:
-        axs_logs[0].legend(loc="upper left", bbox_to_anchor=(1.05, 1))
-        axs_logs[1].legend(loc="upper left", bbox_to_anchor=(1.05, 1))
+        ax_logs.legend(loc="upper left", bbox_to_anchor=(1.05, 1))
 
-    fig_logs.tight_layout()
+    if legend_position_selector.value == "below":
+        fig_logs.tight_layout(rect=(0, 0.12, 1, 1))
+    else:
+        fig_logs.tight_layout()
 
     fig_logs
     return
@@ -251,11 +242,11 @@ def _(plt, results, visible_ui):
 
     if scatter_data:
         u_values = [_item["u"] for _item in scatter_data]
-        increments = [_item["max_increment"] for _item in scatter_data]
-        ax_vs_u.plot(u_values, increments, marker="o", linestyle="-", label="max increment")
+        growth_rates = [_item["growth_rate"] for _item in scatter_data]
+        ax_vs_u.plot(u_values, growth_rates, marker="o", linestyle="-", label=r"$2\gamma/\nu_0$")
 
     ax_vs_u.set_xlabel("u")
-    ax_vs_u.set_ylabel("max increment")
+    ax_vs_u.set_ylabel(r"$2\gamma/\nu_0$")
     ax_vs_u.grid(True)
     ax_vs_u.legend()
     fig_vs_u.tight_layout()
@@ -267,6 +258,7 @@ def _(plt, results, visible_ui):
 @app.cell
 def _(
     c1_selector,
+    c2_selector,
     legend_position_selector,
     np,
     plt,
@@ -276,23 +268,43 @@ def _(
 ):
     fig_with_level, ax_with_level = plt.subplots(figsize=(8, 5))
 
+    curve_colors = {}
     for _item in results:
         if _item["label"] not in visible_ui.value:
             continue
-        ax_with_level.plot(_item["t"], _item["Wa"], label=_item["label"])
+        curve_line, = ax_with_level.plot(_item["t"], _item["Wa"], label=_item["label"])
 
         # Draw level if u is available
         if _item["u"] is not None:
             u_val = _item["u"]
-            level_val = np.exp(2 * np.pi / (u_val ** 2) + c1_selector.value)
+            curve_color = curve_colors.get(u_val)
+            if curve_color is None:
+                curve_color = curve_line.get_color()
+                curve_colors[u_val] = curve_color
+            else:
+                curve_line.set_color(curve_color)
+
+            level_u_val = np.exp(2 * np.pi / (u_val ** 2) + c1_selector.value)
             ax_with_level.axhline(
-                level_val,
+                level_u_val,
+                color=curve_color,
                 linestyle="--",
                 alpha=0.6,
-                label=f"level u={u_val:.3f}",
+                label=f"level u={u_val:.3f}, C1",
             )
 
-    ax_with_level.set_xlabel("t")
+            selected_growth_rate_value = _item["growth_rate"]
+            gamma = selected_growth_rate_value / 2.0
+            level_gamma_val = np.exp(2 * np.pi * (gamma ** 2) + c2_selector.value)
+            ax_with_level.axhline(
+                level_gamma_val,
+                color=curve_color,
+                linestyle="-.",
+                alpha=0.6,
+                label=f"level gamma u={u_val:.3f}, C2",
+            )
+
+    ax_with_level.set_xlabel(r"$\nu_0 t$")
     ax_with_level.set_ylabel("Wa")
 
     if scale_selector.value == "log":
@@ -304,10 +316,15 @@ def _(
         ax_with_level.legend()
     elif legend_position_selector.value == "right":
         ax_with_level.legend(loc="center left", bbox_to_anchor=(1, 0.5))
+    elif legend_position_selector.value == "below":
+        ax_with_level.legend(loc="upper center", bbox_to_anchor=(0.5, -0.18), ncol=2)
     else:
         ax_with_level.legend(loc="upper left", bbox_to_anchor=(1.05, 1))
 
-    fig_with_level.tight_layout()
+    if legend_position_selector.value == "below":
+        fig_with_level.tight_layout(rect=(0, 0.12, 1, 1))
+    else:
+        fig_with_level.tight_layout()
     fig_with_level
     return
 
