@@ -21,7 +21,7 @@ def _():
 @app.cell
 def _(mo):
     folder_ui = mo.ui.text(
-    value=r"C:\YandexDisk\Yandex.Disk\Ioffe\workspace\one_decay\1Dx\data\HDF5\w0x=0p05",
+    value=r"C:\YandexDisk\Yandex.Disk\Ioffe\workspace\one_decay\1Dx\data\delta vs zero\HDF5\auto\range=40",
         label="data folder",
         full_width=True,
     )
@@ -185,17 +185,8 @@ def _(energy_data, field_ui, plt, scale_ui, visibility_ui):
     axs[0].legend()
     axs[1].legend()
     plt.tight_layout()
-    return (fig,)
 
-
-@app.cell
-def _(fig):
     fig
-    return
-
-
-@app.cell
-def _():
     return
 
 
