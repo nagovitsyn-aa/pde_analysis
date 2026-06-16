@@ -145,8 +145,8 @@ def _(mo, results):
 
 @app.cell
 def _(mo):
-    tmin_selector = mo.ui.number(value=0.0, step=0.1, label="t_min for d/dt plot")
-    tmax_selector = mo.ui.number(value=10.0, step=0.1, label="t_max for d/dt plot")
+    tmin_selector = mo.ui.number(value=0.0, step=0.01, label="t_min for d/dt plot")
+    tmax_selector = mo.ui.number(value=10.0, step=0.01, label="t_max for d/dt plot")
 
     ymin_selector = mo.ui.number(value=-1.0, label="y_min for d/dt plot")
     ymax_selector = mo.ui.number(value=2.0, label="y_max for d/dt plot")
@@ -251,6 +251,7 @@ def _(plt, results, visible_ui):
     ax_vs_u.legend()
     fig_vs_u.tight_layout()
 
+    print([[u, g] for u, g in zip(u_values, growth_rates)])
     fig_vs_u
     return
 
@@ -326,6 +327,80 @@ def _(
     else:
         fig_with_level.tight_layout()
     fig_with_level
+    return
+
+
+@app.cell
+def _(np, plt):
+    picked_data_w_0p05 = [
+        [0, 2],
+        [np.float64(0.6), 1.7448231306716089],
+        [np.float64(0.8), 1.5550525678418161],
+        [np.float64(1.0), 1.283402333661524],
+        [np.float64(1.2), 0.9691163819206601],
+        [np.float64(1.4), 0.6859949325346566],
+        [np.float64(1.6), 0.478948184707793],
+        [np.float64(1.8), 0.3431621053689149],
+        [np.float64(2.0), 0.25648421159802837],
+        [np.float64(2.2), 0.20180857309470923],
+        [np.float64(2.4), 0.1614733634596064],
+        [np.float64(2.6), 0.13635387040818614]
+    ]
+
+    # Данные для w = 0.5
+    picked_data_w_0p5 = [
+        [np.float64(0.4), 1.927632926231027],
+        [np.float64(0.6), 1.8618887456236592],
+        [np.float64(0.8), 1.7634897985058942],
+        [np.float64(1.0), 1.6292176902361817],
+        [np.float64(1.2), 1.470791177616892],
+        [np.float64(1.4), 1.3056809640564424],
+        [np.float64(1.6), 1.1497878424167567],
+        [np.float64(1.8), 1.0114144684646131],
+        [np.float64(2.0), 0.8936880369139644],
+        [np.float64(2.2), 0.7956294618296091],
+        [np.float64(2.4), 0.7142589925935026],
+        [np.float64(2.6), 0.6471517894360832]
+    ]
+
+    # Третий набор: w = 0.05, x0 = 10 (в данных есть повтор x=2.2)
+    picked_data_w_0p05_x0_10 = [
+        [np.float64(0.6), 1.7464403066455922],
+        [np.float64(0.8), 1.5555665410760544],
+        [np.float64(1.0), 1.281173878707527],
+        [np.float64(1.2), 0.9629130200310074],
+        [np.float64(1.4), 0.6784667436218115],
+        [np.float64(1.6), 0.4703941371814331],
+        [np.float64(1.8), 0.3367577702557565],
+        [np.float64(2.0), 0.2504684697508459],
+        [np.float64(2.2), 0.194926990679134]      
+    ]
+
+    # Извлечение x и y для w=0.05
+    x1, gamma2_1 = zip(*picked_data_w_0p05)
+    gamma1_1 = np.array(gamma2_1) / 2
+
+    # Извлечение x и y для w=0.5
+    x2, gamma2_2 = zip(*picked_data_w_0p5)
+    gamma1_2 = np.array(gamma2_2) / 2
+
+    # Извлечение x и y для третьего набора
+    x3, gamma2_3 = zip(*picked_data_w_0p05_x0_10)
+    gamma1_3 = np.array(gamma2_3) / 2
+
+    # Построение графиков
+    plt.figure(figsize=(10, 6))
+    plt.plot(x1, gamma1_1, 'o-', linewidth=2, markersize=6, label='w = 0.05 (x0 = 5)')
+    plt.plot(x2, gamma1_2, 's-', linewidth=2, markersize=6, label='w = 0.5 (x0 = 5)')
+    plt.plot(x3, gamma1_3, '^-', linewidth=2, markersize=6, label='w = 0.05 (x0 = 10)')
+
+    # Оформление
+    plt.xlabel('u_values')
+    plt.ylabel('growth_rates')
+    plt.title('График зависимости growth_rates от u_values')
+    plt.grid(True, alpha=0.3)
+    plt.legend()
+    plt.show()
     return
 
 
