@@ -4,20 +4,22 @@ __generated_with = "0.23.2"
 app = marimo.App(layout_file="layouts/growth_rate_study_1d.grid.json")
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _():
     import marimo as mo
     import matplotlib.pyplot as plt
     import numpy as np
+    import re
+
 
     from pathlib import Path
     from pde_analysis.load_h5_solver_file import load_h5_solver_file_1d
     from pde_analysis.analysis import compute_energy_1d
 
-    return Path, compute_energy_1d, load_h5_solver_file_1d, mo, np, plt
+    return Path, compute_energy_1d, load_h5_solver_file_1d, mo, np, plt, re
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     folder_ui = mo.ui.text(
         value=r"C:\YandexDisk\Yandex.Disk\Ioffe\workspace\one_decay\1Dx\data\HDF5\auto\w0x=0p5",
@@ -29,14 +31,14 @@ def _(mo):
     return (folder_ui,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(Path, folder_ui):
     folder_path = Path(folder_ui.value)
     files = sorted([str(p) for p in folder_path.glob("*.h5")])
     return (files,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(files, mo):
     files_checkbox = mo.ui.multiselect(
         options=files,
@@ -48,12 +50,7 @@ def _(files, mo):
     return (files_checkbox,)
 
 
-@app.cell
-def _():
-    return
-
-
-@app.cell
+@app.cell(hide_code=True)
 def _(
     compute_energy_1d,
     files_checkbox,
@@ -118,7 +115,7 @@ def _(
     return (results,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo, results):
     labels = [item["label"] for item in results]
     visible_ui = mo.ui.multiselect(
@@ -131,7 +128,7 @@ def _(mo, results):
     return (visible_ui,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo, results):
     selected_label_ui = mo.ui.radio(
         options=[item["label"] for item in results],
@@ -143,7 +140,7 @@ def _(mo, results):
     return (selected_label_ui,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     tmin_selector = mo.ui.number(value=0.0, step=0.01, label="t_min for d/dt plot")
     tmax_selector = mo.ui.number(value=10.0, step=0.01, label="t_max for d/dt plot")
@@ -169,7 +166,6 @@ def _(mo):
     tmin_selector, tmax_selector, ymin_selector, ymax_selector, scale_selector, legend_position_selector, c1_selector, c2_selector
     return (
         c1_selector,
-        c2_selector,
         legend_position_selector,
         scale_selector,
         tmax_selector,
@@ -179,7 +175,7 @@ def _(mo):
     )
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(
     legend_position_selector,
     plt,
@@ -191,23 +187,45 @@ def _(
     ymax_selector,
     ymin_selector,
 ):
+    import re as _re
+
     fig_logs, ax_logs = plt.subplots(figsize=(8, 5))
 
     for _item in results:
         if _item["label"] not in visible_ui.value:
             continue
+    
+        # Parse filename to extract u and w0x (convert p to .)
+        _filename = _item["label"]
+        _u_match = _re.search(r'u=([\d.p]+)', _filename)
+        _w_match = _re.search(r'w0x=([\d.p]+)', _filename)
+    
+        _u_val_parsed = _u_match.group(1).replace('p', '.') if _u_match else "?"
+        _w_val_parsed = _w_match.group(1).replace('p', '.') if _w_match else "?"
+    
+        _new_label = f"u={_u_val_parsed}, w₀ˣ={_w_val_parsed}"
+    
         mask = (_item["t"] >= tmin_selector.value) & (_item["t"] <= tmax_selector.value)
-        ax_logs.plot(_item["t"][mask], _item["dlogW"][mask], label=_item["label"])
+        ax_logs.plot(_item["t"][mask], _item["dlogW"][mask], label=_new_label)
 
     selected = next((item for item in results if item["label"] == selected_label_ui.value), None)
     if selected is not None:
+        # Parse selected label too
+        _filename_sel = selected["label"]
+        _u_match_sel = _re.search(r'u=([\d.p]+)', _filename_sel)
+        _w_match_sel = _re.search(r'w0x=([\d.p]+)', _filename_sel)
+    
+        _u_val_parsed_sel = _u_match_sel.group(1).replace('p', '.') if _u_match_sel else "?"
+        _w_val_parsed_sel = _w_match_sel.group(1).replace('p', '.') if _w_match_sel else "?"
+        _selected_new_label = f"u={_u_val_parsed_sel}, w₀={_w_val_parsed_sel}"
+    
         ax_logs.scatter(
             [selected["t_growth_rate_max"]],
             [selected["growth_rate"]],
             color="red",
             marker="x",
             s=80,
-            label=f"growth rate {selected['label']}",
+            label=f"growth rate {_selected_new_label}",
         )
 
     ax_logs.set_ylabel("d/dt log Wa")
@@ -233,7 +251,7 @@ def _(
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(plt, results, visible_ui):
     fig_vs_u, ax_vs_u = plt.subplots(figsize=(8, 5))
 
@@ -256,13 +274,13 @@ def _(plt, results, visible_ui):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(
     c1_selector,
-    c2_selector,
     legend_position_selector,
     np,
     plt,
+    re,
     results,
     scale_selector,
     visible_ui,
@@ -273,7 +291,18 @@ def _(
     for _item in results:
         if _item["label"] not in visible_ui.value:
             continue
-        curve_line, = ax_with_level.plot(_item["t"], _item["Wa"], label=_item["label"])
+    
+        # Parse filename to extract u and w0x (convert p to .)
+        filename = _item["label"]
+        u_match = re.search(r'u=([\d.p]+)', filename)
+        w_match = re.search(r'w0x=([\d.p]+)', filename)
+    
+        u_val_parsed = u_match.group(1).replace('p', '.') if u_match else "?"
+        w_val_parsed = w_match.group(1).replace('p', '.') if w_match else "?"
+    
+        new_label = f"u={u_val_parsed}, w₀={w_val_parsed}"
+    
+        curve_line, = ax_with_level.plot(_item["t"], _item["Wa"], label=new_label)
 
         # Draw level if u is available
         if _item["u"] is not None:
@@ -291,22 +320,14 @@ def _(
                 color=curve_color,
                 linestyle="--",
                 alpha=0.6,
-                label=f"level u={u_val:.3f}, C1",
-            )
-
-            selected_growth_rate_value = _item["growth_rate"]
-            gamma = selected_growth_rate_value / 2.0
-            level_gamma_val = np.exp(2 * np.pi * (gamma ** 2) + c2_selector.value)
-            ax_with_level.axhline(
-                level_gamma_val,
-                color=curve_color,
-                linestyle="-.",
-                alpha=0.6,
-                label=f"level gamma u={u_val:.3f}, C2",
             )
 
     ax_with_level.set_xlabel(r"$\nu_0 t$")
     ax_with_level.set_ylabel("Wa")
+
+    # Add title template
+    title_text = "dx=0.005"
+    ax_with_level.set_title(title_text, fontsize=10)
 
     if scale_selector.value == "log":
         ax_with_level.set_yscale("log")
@@ -326,7 +347,7 @@ def _(
         fig_with_level.tight_layout(rect=(0, 0.12, 1, 1))
     else:
         fig_with_level.tight_layout()
-    fig_with_level
+    fig_with_level 
     return
 
 
@@ -404,8 +425,23 @@ def _(np, plt):
     return
 
 
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    Данные для эволюции дельта функции
+    """)
+    return
+
+
 @app.cell
-def _():
+def _(np):
+    delta_w0_0p01 = [[np.float64(0.4), 1.861616235609759], [np.float64(0.5), 1.8130577533297156], [np.float64(0.6), 1.7608288187366057], [np.float64(0.8), 1.655252916818629], [np.float64(1.0), 1.571040012628858]]
+
+    delta_w0_0p05 = [[np.float64(0.4), 1.8615656670863174], [np.float64(0.5), 1.8130488411299623], [np.float64(0.6), 1.7609930733318464], [np.float64(0.8), 1.6566415230067584], [np.float64(1.0), 1.5759652401597801]]
+
+    delta_w0_0p1 = [[np.float64(0.4), 1.8613971637251652], [np.float64(0.5), 1.8128515802620626], [np.float64(0.6), 1.7610154534064684], [np.float64(0.8), 1.6582838540358225], [np.float64(1.0), 1.5864466223768696]]
+
+
     return
 
 
