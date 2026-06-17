@@ -59,9 +59,12 @@ def _(
     tmax_selector,
     tmin_selector,
 ):
+    from scipy.signal import find_peaks
+
     results = []
     t_range_min = min(tmin_selector.value, tmax_selector.value)
     t_range_max = max(tmin_selector.value, tmax_selector.value)
+    peak_number = 1  # Default: first maximum, can be changed manually later
 
     for filepath in files_checkbox.value:
         data = load_h5_solver_file_1d(filepath)
@@ -83,9 +86,27 @@ def _(
         t_in_range = t[in_range]
 
         if len(dlogW_in_range) > 0 and np.isfinite(dlogW_in_range).any():
-            growth_rate_idx = int(np.nanargmax(dlogW_in_range))
-            growth_rate = float(dlogW_in_range[growth_rate_idx])
-            t_growth_rate_max = float(t_in_range[growth_rate_idx])
+            # Find peaks in the range
+            peaks, _ = find_peaks(dlogW_in_range)
+
+            if len(peaks) > 0:
+
+                sorted_peak_indices = peaks
+
+                if peak_number <= len(sorted_peak_indices):
+                    growth_rate_idx = int(sorted_peak_indices[peak_number - 1])
+                    growth_rate = float(dlogW_in_range[growth_rate_idx])
+                    t_growth_rate_max = float(t_in_range[growth_rate_idx])
+                else:
+                    # If not enough peaks, take global max
+                    growth_rate_idx = int(np.nanargmax(dlogW_in_range))
+                    growth_rate = float(dlogW_in_range[growth_rate_idx])
+                    t_growth_rate_max = float(t_in_range[growth_rate_idx])
+            else:
+                # If no peaks found, take global max
+                growth_rate_idx = int(np.nanargmax(dlogW_in_range))
+                growth_rate = float(dlogW_in_range[growth_rate_idx])
+                t_growth_rate_max = float(t_in_range[growth_rate_idx])
         else:
             growth_rate_idx = int(np.nanargmax(dlogW))
             growth_rate = float(dlogW[growth_rate_idx])
@@ -194,17 +215,17 @@ def _(
     for _item in results:
         if _item["label"] not in visible_ui.value:
             continue
-    
+
         # Parse filename to extract u and w0x (convert p to .)
         _filename = _item["label"]
         _u_match = _re.search(r'u=([\d.p]+)', _filename)
         _w_match = _re.search(r'w0x=([\d.p]+)', _filename)
-    
+
         _u_val_parsed = _u_match.group(1).replace('p', '.') if _u_match else "?"
         _w_val_parsed = _w_match.group(1).replace('p', '.') if _w_match else "?"
-    
-        _new_label = f"u={_u_val_parsed}, w₀ˣ={_w_val_parsed}"
-    
+
+        _new_label = f"u={_u_val_parsed}, w₀={_w_val_parsed}"
+
         mask = (_item["t"] >= tmin_selector.value) & (_item["t"] <= tmax_selector.value)
         ax_logs.plot(_item["t"][mask], _item["dlogW"][mask], label=_new_label)
 
@@ -214,11 +235,11 @@ def _(
         _filename_sel = selected["label"]
         _u_match_sel = _re.search(r'u=([\d.p]+)', _filename_sel)
         _w_match_sel = _re.search(r'w0x=([\d.p]+)', _filename_sel)
-    
+
         _u_val_parsed_sel = _u_match_sel.group(1).replace('p', '.') if _u_match_sel else "?"
         _w_val_parsed_sel = _w_match_sel.group(1).replace('p', '.') if _w_match_sel else "?"
         _selected_new_label = f"u={_u_val_parsed_sel}, w₀={_w_val_parsed_sel}"
-    
+
         ax_logs.scatter(
             [selected["t_growth_rate_max"]],
             [selected["growth_rate"]],
@@ -291,17 +312,17 @@ def _(
     for _item in results:
         if _item["label"] not in visible_ui.value:
             continue
-    
+
         # Parse filename to extract u and w0x (convert p to .)
         filename = _item["label"]
         u_match = re.search(r'u=([\d.p]+)', filename)
         w_match = re.search(r'w0x=([\d.p]+)', filename)
-    
+
         u_val_parsed = u_match.group(1).replace('p', '.') if u_match else "?"
         w_val_parsed = w_match.group(1).replace('p', '.') if w_match else "?"
-    
+
         new_label = f"u={u_val_parsed}, w₀={w_val_parsed}"
-    
+
         curve_line, = ax_with_level.plot(_item["t"], _item["Wa"], label=new_label)
 
         # Draw level if u is available
@@ -384,7 +405,7 @@ def _(np, plt):
         [np.float64(2.6), 0.6471517894360832]
     ]
 
-    # Третий набор: w = 0.05, x0 = 10 (в данных есть повтор x=2.2)
+    # Третий набор: w = 0.05, x0 = 10 
     picked_data_w_0p05_x0_10 = [
         [np.float64(0.6), 1.7464403066455922],
         [np.float64(0.8), 1.5555665410760544],
@@ -434,14 +455,158 @@ def _(mo):
 
 
 @app.cell
-def _(np):
+def _(np, plt):
     delta_w0_0p01 = [[np.float64(0.4), 1.861616235609759], [np.float64(0.5), 1.8130577533297156], [np.float64(0.6), 1.7608288187366057], [np.float64(0.8), 1.655252916818629], [np.float64(1.0), 1.571040012628858]]
 
     delta_w0_0p05 = [[np.float64(0.4), 1.8615656670863174], [np.float64(0.5), 1.8130488411299623], [np.float64(0.6), 1.7609930733318464], [np.float64(0.8), 1.6566415230067584], [np.float64(1.0), 1.5759652401597801]]
 
     delta_w0_0p1 = [[np.float64(0.4), 1.8613971637251652], [np.float64(0.5), 1.8128515802620626], [np.float64(0.6), 1.7610154534064684], [np.float64(0.8), 1.6582838540358225], [np.float64(1.0), 1.5864466223768696]]
 
+    delta_w0_0p5 = [[np.float64(0.4), 1.8624345700420264], [np.float64(0.5), 1.8122961860411984], [np.float64(0.6), 1.762724022469257]]
 
+
+    _fig, _ax = plt.subplots(figsize=(8, 5))
+
+    # Define datasets with their labels
+    _datasets = {
+        "w₀=0.01": delta_w0_0p01,
+        "w₀=0.05": delta_w0_0p05,
+        "w₀=0.1": delta_w0_0p1,
+        "w₀=0.5": delta_w0_0p5,
+    }
+
+    for _label, _data in _datasets.items():
+        _u_values = [_point[0] for _point in _data]
+        _gamma_nu0_values = [_point[1] for _point in _data]
+        _ax.plot(_u_values, _gamma_nu0_values, marker='o', label=_label)
+
+    _ax.set_title("Delta function evolution")
+    _ax.set_xlabel("u")
+    _ax.set_ylabel(r"$2\gamma/\nu_0$")
+    _ax.grid(True)
+    _ax.legend()
+    _fig.tight_layout()
+    _fig
+
+    return (delta_w0_0p05,)
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    Данные для эволюции двух гауссов
+    """)
+    return
+
+
+@app.cell
+def _(np, plt):
+    # x0 = 5
+    gauss_w0_0p05 = [[np.float64(0.4), 1.8625464287709406], [np.float64(0.6), 1.7448231306716089], [np.float64(0.8), 1.5550525678418161], [np.float64(1.0), 1.283402333661524], [np.float64(1.2), 0.9691163819206601], [np.float64(1.4), 0.6859949325346566], [np.float64(1.6), 0.478948184707793], [np.float64(1.8), 0.3431621053689149], [np.float64(2.0), 0.25648421159802837], [np.float64(2.2), 0.20180857309470923], [np.float64(2.4), 0.1614733634596064], [np.float64(2.6), 0.13635387040818614]]
+    gauss_w0_0p5_first = [[np.float64(0.4), 1.3788411240662146], [np.float64(0.6), 1.0758704992326167], [np.float64(0.8), 0.8641129089552038], [np.float64(1.0), 0.7149524744417085], [np.float64(1.2), 0.6060744370519366], [np.float64(1.4), 0.5259662940482241], [np.float64(1.6), 0.4614495010255077], [np.float64(1.8), 0.41202259560924637], [np.float64(2.0), 0.3662547267155065], [np.float64(2.2), 0.33636612674037536], [np.float64(2.4), 0.30840876466282807], [np.float64(2.6), 0.282261191282408]]
+    gauss_w0_0p5_second = [[np.float64(0.4), 1.927632926231027], [np.float64(0.6), 1.8618887456236592], [np.float64(0.8), 1.7634897985058942], [np.float64(1.0), 1.6292176902361817], [np.float64(1.2), 1.470791177616892], [np.float64(1.4), 1.3056809640564424], [np.float64(1.6), 1.1497878424167567], [np.float64(1.8), 1.0114144684646131], [np.float64(2.0), 0.8936880369139644], [np.float64(2.2), 0.7956294618296091], [np.float64(2.4), 0.7142589925935026], [np.float64(2.6), 0.6471517894360832]]
+
+    gauss_w0_0p1 = [[np.float64(0.4), 1.8661548728715616], [np.float64(0.6), 1.756810363739973], [np.float64(0.8), 1.5953916784603877], [np.float64(1.0), 1.376519055851647], [np.float64(1.2), 1.1241669881307126], [np.float64(1.4), 0.8809084063063413], [np.float64(1.6), 0.67878250646854], [np.float64(1.8), 0.5273862294097604], [np.float64(2.0), 0.4181278096990635], [np.float64(2.2), 0.34058950893712314], [np.float64(2.4), 0.28307119478334997], [np.float64(2.6), 0.24123563461985675]]
+
+    gauss_w0_1_second = [[np.float64(0.6), 1.927326647846229], [np.float64(0.8), 1.8642606355774909], [np.float64(1.0), 1.7571150047014186], [np.float64(1.2), 1.6260268153618416], [np.float64(1.4), 1.517597081071317], [np.float64(1.6), 1.4772442772821215], [np.float64(1.8), 1.492916223346679], [np.float64(2.0), 1.531478861782336], [np.float64(2.2), 1.5779128982329471]]
+
+    gauss_w0_1_first =[[np.float64(0.6), 1.1095912435957942], [np.float64(0.8), 0.8921705835354659], [np.float64(1.0), 0.7274267659527838], [np.float64(1.2), 0.6166811119638158], [np.float64(1.4), 0.5111209177954943], [np.float64(1.6), 0.45652111444032517], [np.float64(1.8), 0.4026069242726926], [np.float64(2.0), 0.3509039806417449], [np.float64(2.2), 0.3026085809790109]]
+
+    # w0 = 0.05, x0 =...
+    gauss_x0_0 = [[np.float64(0.6), 1.746312902997989], [np.float64(0.8), 1.5646976650325284], [np.float64(1.0), 1.307335458571494], [np.float64(1.2), 1.008972223015002], [np.float64(1.4), 0.7342005525422186], [np.float64(1.6), 0.5275757735248003], [np.float64(1.8), 0.387997662232376], [np.float64(2.0), 0.29467201143500965], [np.float64(2.2), 0.2328078098879942]]
+
+    gauss_x0_10 = [[np.float64(0.6), 1.7464403066455922], [np.float64(0.8), 1.5555665410760544], [np.float64(1.0), 1.281173878707527], [np.float64(1.2), 0.9629130200310074], [np.float64(1.4), 0.6784667436218115], [np.float64(1.6), 0.4703941371814331], [np.float64(1.8), 0.3367577702557565], [np.float64(2.0), 0.2504684697508459], [np.float64(2.2), 0.194926990679134]]
+
+    _fig, _ax = plt.subplots(figsize=(8, 5))
+
+    # Define datasets with their labels
+    _datasets = {
+        "w₀=0.05, x₀=5": gauss_w0_0p05,
+        "w₀=0.1, x₀=5": gauss_w0_0p1,
+        "w₀=0.5, x₀=5 (1st peak)": gauss_w0_0p5_first,
+        "w₀=0.5, x₀=5 (2nd peak)": gauss_w0_0p5_second,
+        "w₀=1.0, x₀=5 (1st peak)": gauss_w0_1_first,
+        "w₀=1.0, x₀=5 (2nd peak)": gauss_w0_1_second,
+        "w₀=0.05, x₀=0": gauss_x0_0,
+        "w₀=0.05, x₀=10": gauss_x0_10,
+    }
+
+    for _label, _data in _datasets.items():
+        _u_values = [_point[0] for _point in _data]
+        _gamma_nu0_values = [_point[1] for _point in _data]
+        _ax.plot(_u_values, _gamma_nu0_values, marker='o', label=_label)
+
+    _ax.set_xlabel("u")
+    _ax.set_ylabel(r"$2\gamma/\nu_0$")
+    _ax.grid(True)
+    _ax.legend(loc="center left", bbox_to_anchor=(1, 0.5))
+    _fig.tight_layout()
+    _fig
+    return (gauss_w0_0p05,)
+
+
+@app.cell
+def _(delta_w0_0p05, gauss_w0_0p05, plt):
+    _fig, _ax = plt.subplots(figsize=(8, 5))
+
+    # Define datasets with their labels
+    _datasets = {
+        "delta function evolution": delta_w0_0p05,
+        "gauss function evolution": gauss_w0_0p05,
+    }
+
+    for _label, _data in _datasets.items():
+        _u_values = [_point[0] for _point in _data]
+        _gamma_nu0_values = [_point[1] for _point in _data]
+        _ax.plot(_u_values, _gamma_nu0_values, marker='o', label=_label)
+
+    _ax.set_title(r"$w_0 = 0.05$")
+    _ax.set_xlabel("u")
+    _ax.set_ylabel(r"$2\gamma/\nu_0$")
+    _ax.grid(True)
+    _ax.legend()
+    _fig.tight_layout()
+    _fig
+    return
+
+
+@app.cell
+def _(gauss_w0_0p05, np, plt):
+    _fig, _ax = plt.subplots(figsize=(8, 5))
+
+    # Define function
+    def sech_squared_fit(u, k):
+        return 2 / (np.cosh(k * u))**2
+
+    # Data
+    _u_values = [point[0] for point in gauss_w0_0p05]
+    _gamma_values = [point[1] for point in gauss_w0_0p05]
+
+    # Plot data
+    _ax.plot(_u_values, _gamma_values, marker='o', label="Data: w₀=0.05, x₀=5")
+
+    # Fit parameter k (adjust manually or fit automatically)
+    k = 0.8  # You can change this value
+
+    # Generate smooth curve for the fit
+    _u_fit = np.linspace(min(_u_values), max(_u_values), 100)
+    _gamma_fit = sech_squared_fit(_u_fit, k)
+
+    _ax.plot(_u_fit, _gamma_fit, linestyle='--', label=f'2/(cosh(k·u))², k={k:.2f}')
+
+    _ax.set_xlabel("u")
+    _ax.set_ylabel(r"$2\gamma/\nu_0$")
+    _ax.set_title(r"$w_0 = 0.05, x_0 = 5$")
+    _ax.grid(True)
+    _ax.legend()
+    _fig.tight_layout()
+    _fig
+
+    return
+
+
+@app.cell
+def _():
     return
 
 
