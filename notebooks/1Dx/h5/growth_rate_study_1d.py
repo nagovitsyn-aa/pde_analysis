@@ -15,8 +15,18 @@ def _():
     from pathlib import Path
     from pde_analysis.load_h5_solver_file import load_h5_solver_file_1d
     from pde_analysis.analysis import compute_energy_1d
+    from scipy.signal import find_peaks
 
-    return Path, compute_energy_1d, load_h5_solver_file_1d, mo, np, plt, re
+    return (
+        Path,
+        compute_energy_1d,
+        find_peaks,
+        load_h5_solver_file_1d,
+        mo,
+        np,
+        plt,
+        re,
+    )
 
 
 @app.cell(hide_code=True)
@@ -50,17 +60,30 @@ def _(files, mo):
     return (files_checkbox,)
 
 
+@app.cell
+def _(mo):
+    t_sat = mo.ui.slider(
+        start=0.0,
+        stop=50.0,
+        step=0.1,
+        value=20.0,
+        label="t_sat (saturation time)"
+    )
+    t_sat
+    return (t_sat,)
+
+
 @app.cell(hide_code=True)
 def _(
     compute_energy_1d,
     files_checkbox,
+    find_peaks,
     load_h5_solver_file_1d,
     np,
+    t_sat,
     tmax_selector,
     tmin_selector,
 ):
-    from scipy.signal import find_peaks
-
     results = []
     t_range_min = min(tmin_selector.value, tmax_selector.value)
     t_range_max = max(tmin_selector.value, tmax_selector.value)
@@ -90,8 +113,9 @@ def _(
             peaks, _ = find_peaks(dlogW_in_range)
 
             if len(peaks) > 0:
-
-                sorted_peak_indices = peaks
+                # Sort peaks by height (descending) and take the peak_number-th (1-indexed)
+                peak_heights = dlogW_in_range[peaks]
+                sorted_peak_indices = peaks[np.argsort(peak_heights)[::-1]]  # Sort descending
 
                 if peak_number <= len(sorted_peak_indices):
                     growth_rate_idx = int(sorted_peak_indices[peak_number - 1])
@@ -115,6 +139,11 @@ def _(
         predicted_growth = float(np.exp(growth_rate * (t[-1] - t[0])))
         actual_growth = float(W[-1] / W[0])
 
+        # Find Wa at t_sat
+        t_sat_value = t_sat.value
+        idx_sat = np.argmin(np.abs(t - t_sat_value))
+        Wa_sat = float(W[idx_sat])
+
         params = data.get("parameters", {})
         u_value = params.get("u")
 
@@ -131,9 +160,15 @@ def _(
                 "t_growth_rate_max": t_growth_rate_max,
                 "predicted_growth": predicted_growth,
                 "actual_growth": actual_growth,
+                "Wa_sat": Wa_sat,
             }
         )
     return (results,)
+
+
+@app.cell
+def _():
+    return
 
 
 @app.cell(hide_code=True)
@@ -373,6 +408,547 @@ def _(
 
 
 @app.cell
+def _(np, results):
+    # Create table of u and Wa_sat for all files
+    data_table = []
+    for _item in results:
+        _u_val = _item["u"] if _item["u"] is not None else "N/A"
+        data_table.append([_u_val, np.log(_item["Wa_sat"])])
+    data_table
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    Логарифм уровня насыщения
+    """)
+    return
+
+
+@app.cell
+def _():
+    gauss_sat_w0_0p5 = [
+      [
+        0.6,
+        18.140116403004352
+      ],
+      [
+        0.8,
+        10.602046782172613
+      ],
+      [
+        1.2,
+        4.6280666529594345
+      ],
+      [
+        1.4,
+        3.6656025879181002
+      ],
+      [
+        1.6,
+        3.0356334593598286
+      ],
+      [
+        1.8,
+        2.575687682681905
+      ],
+      [
+        1.0,
+        6.511413031397413
+      ],
+      [
+        2.2,
+        1.9433207964495842
+      ],
+      [
+        2.4,
+        1.7169975531773678
+      ],
+      [
+        2.6,
+        1.5303836361740362
+      ],
+      [
+        2.0,
+        2.222702294977362
+      ]
+    ]
+
+    gauss_sat_w0_0p1 = [
+      [
+        0.6,
+        15.1925911507745
+      ],
+      [
+        0.8,
+        7.9686218534980675
+      ],
+      [
+        1.2,
+        2.621942824571425
+      ],
+      [
+        1.4,
+        1.5942229044393141
+      ],
+      [
+        1.6,
+        0.9254216996924053
+      ],
+      [
+        1.8,
+        0.45040515902158457
+      ],
+      [
+        1.0,
+        4.419518157033542
+      ],
+      [
+        2.2,
+        -0.1741956748669994
+      ],
+      [
+        2.4,
+        -0.38881073239125
+      ],
+      [
+        2.6,
+        -0.561234059550923
+      ],
+      [
+        2.0,
+        0.09330118664918909
+      ]
+    ]
+
+    gauss_sat_w0_0p05 = [
+      [
+        0.6,
+        13.81584292759961
+      ],
+      [
+        0.8,
+        6.619291511151065
+      ],
+      [
+        1.2,
+        1.4054774214939003
+      ],
+      [
+        1.4,
+        0.443741479836081
+      ],
+      [
+        1.6,
+        -0.16000296916538126
+      ],
+      [
+        1.8,
+        -0.5716466367938834
+      ],
+      [
+        1.0,
+        3.1355232144591603
+      ],
+      [
+        2.2,
+        -1.089425454443182
+      ],
+      [
+        2.4,
+        -1.2767438687251125
+      ],
+      [
+        2.6,
+        -1.4079758505392888
+      ],
+      [
+        2.0,
+        -0.8737186851544905
+      ]
+    ]
+
+    gauss_sat_w0_1 = [
+      [
+        0.6,
+        19.021970026510296
+      ],
+      [
+        0.8,
+        11.437571992978805
+      ],
+      [
+        1.2,
+        5.206963288745076
+      ],
+      [
+        1.4,
+        4.464098965003791
+      ],
+      [
+        1.6,
+        3.920967265995989
+      ],
+      [
+        1.8,
+        3.495672902943778
+      ],
+      [
+        1.0,
+        6.87218512731246
+      ],
+      [
+        2.2,
+        2.881291736272489
+      ],
+      [
+        2.0,
+        3.1563727553728125
+      ]
+    ]
+
+    gauss_sat_x0_0 = [
+      [
+        0.6,
+        13.841496953848015
+      ],
+      [
+        0.8,
+        6.544843736213469
+      ],
+      [
+        1.2,
+        1.4817327446498139
+      ],
+      [
+        1.4,
+        0.4444830316988758
+      ],
+      [
+        1.6,
+        -0.20016148240295253
+      ],
+      [
+        1.8,
+        -0.6363965414494771
+      ],
+      [
+        1.0,
+        3.2399573115009175
+      ],
+      [
+        2.2,
+        -1.1856901843394638
+      ],
+      [
+        2.0,
+        -0.953910963357522
+      ]
+    ]
+
+
+    gauss_sat_x0_10 = [
+      [
+        0.6,
+        13.796843130813746
+      ],
+      [
+        0.8,
+        6.672939421564022
+      ],
+      [
+        1.2,
+        1.4233325027371324
+      ],
+      [
+        1.4,
+        0.42314343291730167
+      ],
+      [
+        1.6,
+        -0.16108706300257095
+      ],
+      [
+        1.8,
+        -0.555329791209162
+      ],
+      [
+        1.0,
+        3.300954448999917
+      ],
+      [
+        2.2,
+        -1.0644132746125243
+      ],
+      [
+        2.0,
+        -0.846011139344839
+      ]
+    ]
+
+    delta_sat_w_0p5 = [
+      [
+        0.5,
+        24.439200962732478
+      ],
+      [
+        0.6,
+        16.767069747298795
+      ],
+      [
+        0.8,
+        9.335289176002735
+      ],
+      [
+        1.0,
+        5.922748233272939
+      ],
+      [
+        1.2,
+        4.060715582862744
+      ]
+    ]
+
+    delta_sat_w_0p1 = [
+      [
+        0.5,
+        24.439200962732478
+      ],
+      [
+        0.6,
+        16.767069747298795
+      ],
+      [
+        0.8,
+        9.335289176002735
+      ],
+      [
+        1.0,
+        5.922748233272939
+      ],
+      [
+        1.2,
+        4.060715582862744
+      ]
+    ]
+
+    delta_sat_w_0p05 = [
+      [
+        0.5,
+        25.912751007700436
+      ],
+      [
+        0.6,
+        18.453748691290574
+      ],
+      [
+        0.8,
+        11.129755074368255
+      ],
+      [
+        1.0,
+        7.80696895867281
+      ],
+      [
+        1.2,
+        6.02957586863489
+      ]
+    ]
+
+    delta_sat_w_0p01 = [
+      [
+        0.5,
+        25.928037812524835
+      ],
+      [
+        0.6,
+        18.477341378061933
+      ],
+      [
+        0.8,
+        11.175648940844695
+      ],
+      [
+        1.0,
+        7.880955623720084
+      ],
+      [
+        1.2,
+        6.136645830661121
+      ]
+    ]
+    return (
+        delta_sat_w_0p01,
+        delta_sat_w_0p05,
+        delta_sat_w_0p1,
+        delta_sat_w_0p5,
+        gauss_sat_w0_0p05,
+        gauss_sat_w0_0p1,
+        gauss_sat_w0_0p5,
+        gauss_sat_w0_1,
+        gauss_sat_x0_0,
+        gauss_sat_x0_10,
+    )
+
+
+@app.cell
+def _(np):
+    from sklearn.linear_model import LinearRegression
+
+    def calculate_r2(x_values, y_values):
+        """
+        Calculate R^2 for linear regression.
+        """
+        x = np.array(x_values).reshape(-1, 1)
+        y = np.array(y_values)
+        model = LinearRegression().fit(x, y)
+        r2 = model.score(x, y)
+        return r2
+
+    def sort_by_first_element(data_list):
+        return sorted(data_list, key=lambda x: x[0])
+
+    
+
+    return calculate_r2, sort_by_first_element
+
+
+@app.cell
+def _(
+    calculate_r2,
+    delta_sat_w_0p01,
+    delta_sat_w_0p05,
+    delta_sat_w_0p1,
+    delta_sat_w_0p5,
+    np,
+    plt,
+    sort_by_first_element,
+):
+    _fig1, _ax1 = plt.subplots(figsize=(8, 5))
+
+    # 1. Delta function with different w
+    _delta_datasets = {
+        "w₀=0.01": sort_by_first_element(delta_sat_w_0p01),
+        "w₀=0.05": sort_by_first_element(delta_sat_w_0p05),
+        "w₀=0.1": sort_by_first_element(delta_sat_w_0p1),
+        "w₀=0.5": sort_by_first_element(delta_sat_w_0p5),
+    }
+
+    for _label, _data in _delta_datasets.items():
+        _u_values = [_point[0] for _point in _data]
+        _x_values = [2 * np.pi / (u ** 2) for u in _u_values]
+        _logWa_values = [_point[1] for _point in _data]
+    
+        # Calculate R^2
+        _r2 = calculate_r2(_x_values, _logWa_values)
+        _label_with_r2 = f"{_label} (R²={_r2:.5f})"
+    
+        _ax1.plot(_x_values, _logWa_values, marker='o', label=_label_with_r2)
+    _ax1.set_box_aspect(1)   
+    _ax1.set_xticks(np.arange(0, max(_ax1.get_xlim()) + 2.5, 2.5))
+    _ax1.set_yticks(np.arange(0, max(_ax1.get_ylim()) + 2.5, 2.5))
+
+    _ax1.set_xlabel(r"$2\pi/u^2$")
+    _ax1.set_ylabel(r"$\log(W_a)$")
+    _ax1.set_title("Delta function evolution: saturation vs w₀")
+    _ax1.grid(True)
+    _ax1.legend()
+    _fig1.tight_layout()
+    _fig1
+    return
+
+
+@app.cell
+def _(
+    calculate_r2,
+    gauss_sat_w0_0p05,
+    gauss_sat_w0_0p1,
+    gauss_sat_w0_0p5,
+    gauss_sat_w0_1,
+    np,
+    plt,
+    sort_by_first_element,
+):
+    _fig2, _ax2 = plt.subplots(figsize=(8, 5))
+
+    # 2. Gauss evolution with different w, x0=5
+    _gauss_datasets = {
+        "w₀=0.05": sort_by_first_element(gauss_sat_w0_0p05),
+        "w₀=0.1": sort_by_first_element(gauss_sat_w0_0p1),
+        "w₀=0.5": sort_by_first_element(gauss_sat_w0_0p5),
+        "w₀=1.0": sort_by_first_element(gauss_sat_w0_1),
+    }
+
+    for _label, _data in _gauss_datasets.items():
+        _u_values = [_point[0] for _point in _data]
+        _x_values = [2 * np.pi / (u ** 2) for u in _u_values]
+        _logWa_values = [_point[1] for _point in _data]
+    
+        # Calculate R^2
+        _r2 = calculate_r2(_x_values, _logWa_values)
+        _label_with_r2 = f"{_label} (R²={_r2:.5f})"
+    
+        _ax2.plot(_x_values, _logWa_values, marker='o', label=_label_with_r2)
+    _ax2.set_xticks(np.arange(0, max(_ax2.get_xlim()) + 2.5, 2.5))
+    _ax2.set_yticks(np.arange(0, max(_ax2.get_ylim()) + 2.5, 2.5))
+
+    _ax2.set_xlabel(r"$2\pi/u^2$")
+    _ax2.set_ylabel(r"$\log(W_a)$")
+    _ax2.set_title("Gauss evolution (x₀=5): saturation vs w₀")
+    _ax2.grid(True)
+    _ax2.legend()
+    _ax2.set_aspect('equal')
+    _fig2.tight_layout()
+    _fig2
+    return
+
+
+@app.cell
+def _(
+    calculate_r2,
+    gauss_sat_w0_0p05,
+    gauss_sat_x0_0,
+    gauss_sat_x0_10,
+    np,
+    plt,
+    sort_by_first_element,
+):
+    _fig3, _ax3 = plt.subplots(figsize=(8, 5))
+
+    # 3. Compare w0=0.05, x0 = 0, 5, 10
+    _x0_datasets = {
+        "x₀=0": sort_by_first_element(gauss_sat_x0_0),
+        "x₀=5": sort_by_first_element(gauss_sat_w0_0p05),
+        "x₀=10": sort_by_first_element(gauss_sat_x0_10),
+    }
+
+    for _label, _data in _x0_datasets.items():
+        _u_values = [_point[0] for _point in _data]
+        _x_values = [2 * np.pi / (u ** 2) for u in _u_values]
+        _logWa_values = [_point[1] for _point in _data]
+    
+        # Calculate R^2
+        _r2 = calculate_r2(_x_values, _logWa_values)
+        _label_with_r2 = f"{_label} (R²={_r2:.5f})"
+    
+        _ax3.plot(_x_values, _logWa_values, marker='o', label=_label_with_r2)
+    _ax3.set_box_aspect(1)   
+    _ax3.set_xticks(np.arange(0, max(_ax3.get_xlim()) + 2.5, 2.5))
+    _ax3.set_yticks(np.arange(0, max(_ax3.get_ylim()) + 2.5, 2.5))
+
+    _ax3.set_xlabel(r"$2\pi/u^2$")
+    _ax3.set_ylabel(r"$\log(W_a)$")
+    _ax3.set_title("Gauss evolution (w₀=0.05): saturation vs x₀")
+    _ax3.grid(True)
+    _ax3.legend()
+    _fig3.tight_layout()
+    _fig3
+
+    return
+
+
+@app.cell
 def _(np, plt):
     picked_data_w_0p05 = [
         [0, 2],
@@ -487,7 +1063,6 @@ def _(np, plt):
     _ax.legend()
     _fig.tight_layout()
     _fig
-
     return (delta_w0_0p05,)
 
 
@@ -601,7 +1176,6 @@ def _(gauss_w0_0p05, np, plt):
     _ax.legend()
     _fig.tight_layout()
     _fig
-
     return
 
 
