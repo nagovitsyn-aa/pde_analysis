@@ -92,7 +92,7 @@ def _(mo):
     min_len_selector = mo.ui.slider(start=2, stop=50, value=3)
     max_len_selector = mo.ui.slider(start=4, stop=100, value=10)
 
-    tmin_selector = mo.ui.number(value=2.0, label="t_min")
+    tmin_selector = mo.ui.number(value=2.0, step=0.1, label="t_min")
     tmax_selector = mo.ui.number(value=5.0, label="t_max")
 
     legend_position_selector = mo.ui.radio(
@@ -113,6 +113,8 @@ def _(mo):
 
 @app.cell
 def _(np):
+    from scipy.signal import find_peaks
+
     def find_increment_internal(
         t_arr_internal,
         y_arr_internal,
@@ -120,12 +122,13 @@ def _(np):
         max_len_internal,
         tmin_internal,
         tmax_internal,
+        peak_number=2,  # New parameter: which peak to select (1=first, 2=second, etc.)
     ):
         mask_internal = (
             (y_arr_internal > 0) &
             (t_arr_internal >= tmin_internal) &
             (t_arr_internal <= tmax_internal)
-       )
+        )
         t_arr_internal = t_arr_internal[mask_internal]
         y_arr_internal = y_arr_internal[mask_internal]
 
@@ -133,42 +136,33 @@ def _(np):
             return None
 
         log_y_internal = np.log(y_arr_internal)
-        n_internal = len(t_arr_internal)
-
-        best_tuple = None
-        best_r2_val = -1
-
-        for i_internal in range(n_internal - min_len_internal):
-            for j_internal in range(i_internal + min_len_internal, n_internal):
-                length_internal = j_internal - i_internal
-
-                if length_internal > max_len_internal:
-                    break
-
-                x_internal = t_arr_internal[i_internal:j_internal]
-                y_internal = log_y_internal[i_internal:j_internal]
-
-                A_internal = np.vstack([x_internal, np.ones_like(x_internal)]).T
-                coef_internal, *_ = np.linalg.lstsq(A_internal, y_internal, rcond=None)
-
-                slope_internal = coef_internal[0]
-                if slope_internal <= 0:
-                    continue
-
-                y_fit_internal = A_internal @ coef_internal
-                ss_res_internal = np.sum((y_internal - y_fit_internal) ** 2)
-                ss_tot_internal = np.sum((y_internal - y_internal.mean()) ** 2)
-
-                if ss_tot_internal == 0:
-                    continue
-
-                r2_internal = 1 - ss_res_internal / ss_tot_internal
-
-                if r2_internal > best_r2_val:
-                    best_r2_val = r2_internal
-                    best_tuple = (slope_internal, t_arr_internal[i_internal], t_arr_internal[j_internal])
-
-        return best_tuple
+        dlog_y_internal = np.gradient(log_y_internal, t_arr_internal)
+    
+        # Find peaks in the derivative
+        peaks, _ = find_peaks(dlog_y_internal)
+    
+        if len(peaks) > 0:
+            sorted_peak_indices = peaks
+        
+            if peak_number <= len(sorted_peak_indices):
+                peak_idx = int(sorted_peak_indices[peak_number - 1])
+                slope = float(dlog_y_internal[peak_idx])
+                t_start = float(t_arr_internal[peak_idx])
+                t_end = float(t_arr_internal[peak_idx])  # or use neighboring points
+            else:
+                # If not enough peaks, take global max
+                peak_idx = int(np.nanargmax(dlog_y_internal))
+                slope = float(dlog_y_internal[peak_idx])
+                t_start = float(t_arr_internal[peak_idx])
+                t_end = float(t_arr_internal[peak_idx])
+        else:
+            # If no peaks found, take global max
+            peak_idx = int(np.nanargmax(dlog_y_internal))
+            slope = float(dlog_y_internal[peak_idx])
+            t_start = float(t_arr_internal[peak_idx])
+            t_end = float(t_arr_internal[peak_idx])
+    
+        return (slope, t_start, t_end)
 
     return (find_increment_internal,)
 
@@ -262,6 +256,7 @@ def _(
             max_len_selector.value,
             tmin_selector.value,
             tmax_selector.value,
+            peak_number=2
         )
 
         fit_output.append(
@@ -366,7 +361,7 @@ def _(fit_output, legend_position_selector, np, plt, scale_selector):
                 y_vals_local[mask_val_local],
                 linewidth=4,
                 color=color_local,
-                label=f"{entry_plot3['label_local']} γ={slope_val_local:.3f}",
+                label=f"L={entry_plot3['label_local']} 2γ={slope_val_local:.3f}",
             )
 
             u_val_local3 = entry_plot3["u_val"]
@@ -434,10 +429,20 @@ def _(mo):
 
     normalized_selector = mo.ui.checkbox(
         value=False,
-        label="normalize by gamma_1Dz_num",
+        label="normalize by gamma_1D",
     )
-    normalized_selector, param_mode_selector
-    return normalized_selector, param_mode_selector
+
+    normalization_type_selector = mo.ui.radio(
+        options=["1Dz", "1Dx", "1Dz*1Dx"],
+        value="1Dz",
+        label="Normalization type",
+    )
+    normalized_selector, param_mode_selector, normalization_type_selector
+    return (
+        normalization_type_selector,
+        normalized_selector,
+        param_mode_selector,
+    )
 
 
 @app.cell
@@ -492,41 +497,67 @@ def _(
     gamma_num,
     increment_param_data,
     legend_position_selector,
+    normalization_type_selector,
     normalized_selector,
     np,
     param_mode_selector,
     plt,
 ):
-    fig, ax = plt.subplots()
+    from scipy.interpolate import interp1d
+    from collections import defaultdict
 
-    colors = plt.cm.tab10.colors
+    # ---- Данные для 1Dx ----
+    gauss_w0_0p5 = [
+        [np.float64(0.4), 1.927632926231027],
+        [np.float64(0.6), 1.8618887456236592],
+        [np.float64(0.8), 1.7634897985058942],
+        [np.float64(1.0), 1.6292176902361817],
+        [np.float64(1.2), 1.470791177616892],
+        [np.float64(1.4), 1.3056809640564424],
+        [np.float64(1.6), 1.1497878424167567],
+        [np.float64(1.8), 1.0114144684646131],
+        [np.float64(2.0), 0.8936880369139644],
+        [np.float64(2.2), 0.7956294618296091],
+        [np.float64(2.4), 0.7142589925935026],
+        [np.float64(2.6), 0.6471517894360832],
+    ]
+    u_x = np.array([p[0] for p in gauss_w0_0p5])
+    gamma_x = np.array([p[1] for p in gauss_w0_0p5])
+    gamma_x_interp = interp1d(u_x, gamma_x, kind='linear', fill_value='extrapolate')
 
-    def transform(gamma_vals, lam_vals):
+    # ---- Функция нормировки ----
+    def get_norm_factor(gamma, u, lam):
         if not normalized_selector.value:
-            return gamma_vals
-        return gamma_vals / gamma_interp(lam_vals)
+            return gamma
+        if normalization_type_selector.value == "1Dz":
+            return gamma / gamma_interp(lam)
+        elif normalization_type_selector.value == "1Dx":
+            return gamma / gamma_x_interp(u)
+        elif normalization_type_selector.value == "1Dz*1Dx":
+            return 2*gamma / (gamma_interp(lam) * gamma_x_interp(u))
+        else:
+            return gamma
+
+    fig, ax = plt.subplots()
+    colors = plt.cm.tab10.colors
 
     # ========================
     # vs Lambda
     # ========================
     if param_mode_selector.value == "vs_Lambda":
-        from collections import defaultdict
-        grouped_by_u = defaultdict(list)  # Changed name
-
+        grouped_by_u = defaultdict(list)
         for item in increment_param_data:
             grouped_by_u[item["u"]].append(item)
 
-        for i, (current_u_val, items) in enumerate(grouped_by_u.items()):  # Changed name
+        for i, (current_u_val, items) in enumerate(grouped_by_u.items()):
             items_sorted = sorted(items, key=lambda x: x["Lambda"])
-
             lam = np.array([it["Lambda"] for it in items_sorted])
             gamma_vals = np.array([it["gamma"] for it in items_sorted])
-
             color = colors[i % len(colors)]
 
             ax.plot(
                 lam,
-                transform(gamma_vals, lam),
+                get_norm_factor(gamma_vals, current_u_val, lam),
                 color=color,
                 linestyle="-",
                 label=f"u={current_u_val}",
@@ -535,28 +566,12 @@ def _(
         lam_min = np.min([it["Lambda"] for it in increment_param_data])
         lam_max = np.max([it["Lambda"] for it in increment_param_data])
 
-        # аналитика + num только если НЕ нормировано
         if not normalized_selector.value:
             lam_grid = np.linspace(lam_min, lam_max, 300)
-
             gamma_approx = 2.0 / (1.0 + 2.0 * lam_grid / np.pi)
-
-            ax.plot(
-                lam_grid,
-                gamma_approx,
-                "k--",
-                label=r"$2\gamma_{1Dz}^{approx}$",
-            )
-
+            ax.plot(lam_grid, gamma_approx, "k--", label=r"$2\gamma_{1Dz}^{approx}$")
             mask = (Lambda_num >= lam_min) & (Lambda_num <= lam_max)
-
-            ax.plot(
-                Lambda_num[mask],
-                gamma_num[mask],
-                color="gray",
-                linestyle="-",
-                label=r"$2\gamma_{1Dz}^{num}$",
-            )
+            ax.plot(Lambda_num[mask], gamma_num[mask], color="gray", linestyle="-", label=r"$2\gamma_{1Dz}^{num}$")
 
         ax.set_xlabel("Lambda")
 
@@ -564,24 +579,19 @@ def _(
     # vs u
     # ========================
     else:
-        from collections import defaultdict
-        grouped_by_lambda = defaultdict(list)  # Changed name
-
+        grouped_by_lambda = defaultdict(list)
         for item in increment_param_data:
             grouped_by_lambda[item["Lambda"]].append(item)
 
         for i, (lam_val, items) in enumerate(grouped_by_lambda.items()):
             items_sorted = sorted(items, key=lambda x: x["u"])
-
             u_vals = np.array([it["u"] for it in items_sorted])
             gamma_vals = np.array([it["gamma"] for it in items_sorted])
-            lam_array = np.full_like(u_vals, lam_val)
-
             color = colors[i % len(colors)]
 
             ax.plot(
                 u_vals,
-                transform(gamma_vals, lam_array),
+                get_norm_factor(gamma_vals, u_vals, lam_val),
                 color=color,
                 linestyle="-",
                 label=f"Λ={lam_val}",
@@ -593,7 +603,12 @@ def _(
     # оформление
     # ========================
     if normalized_selector.value:
-        ax.set_ylabel(r"$\gamma / \gamma_{1Dz}^{num}$")
+        if normalization_type_selector.value == "1Dz":
+            ax.set_ylabel(r"$\gamma / \gamma_{1Dz}^{num}$")
+        elif normalization_type_selector.value == "1Dx":
+            ax.set_ylabel(r"$\gamma / \gamma_{1Dx}^{num}$")
+        elif normalization_type_selector.value == "1Dz*1Dx":
+            ax.set_ylabel(r"$\gamma / (\gamma_{1Dz}^{num} \gamma_{1Dx}^{num})$")
     else:
         ax.set_ylabel("gamma")
 
