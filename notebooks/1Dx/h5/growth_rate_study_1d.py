@@ -809,7 +809,7 @@ def _(np):
     def sort_by_first_element(data_list):
         return sorted(data_list, key=lambda x: x[0])
 
-    
+
 
     return calculate_r2, sort_by_first_element
 
@@ -839,11 +839,11 @@ def _(
         _u_values = [_point[0] for _point in _data]
         _x_values = [2 * np.pi / (u ** 2) for u in _u_values]
         _logWa_values = [_point[1] for _point in _data]
-    
+
         # Calculate R^2
         _r2 = calculate_r2(_x_values, _logWa_values)
         _label_with_r2 = f"{_label} (R²={_r2:.5f})"
-    
+
         _ax1.plot(_x_values, _logWa_values, marker='o', label=_label_with_r2)
     _ax1.set_box_aspect(1)   
     _ax1.set_xticks(np.arange(0, max(_ax1.get_xlim()) + 2.5, 2.5))
@@ -884,11 +884,11 @@ def _(
         _u_values = [_point[0] for _point in _data]
         _x_values = [2 * np.pi / (u ** 2) for u in _u_values]
         _logWa_values = [_point[1] for _point in _data]
-    
+
         # Calculate R^2
         _r2 = calculate_r2(_x_values, _logWa_values)
         _label_with_r2 = f"{_label} (R²={_r2:.5f})"
-    
+
         _ax2.plot(_x_values, _logWa_values, marker='o', label=_label_with_r2)
     _ax2.set_xticks(np.arange(0, max(_ax2.get_xlim()) + 2.5, 2.5))
     _ax2.set_yticks(np.arange(0, max(_ax2.get_ylim()) + 2.5, 2.5))
@@ -927,11 +927,11 @@ def _(
         _u_values = [_point[0] for _point in _data]
         _x_values = [2 * np.pi / (u ** 2) for u in _u_values]
         _logWa_values = [_point[1] for _point in _data]
-    
+
         # Calculate R^2
         _r2 = calculate_r2(_x_values, _logWa_values)
         _label_with_r2 = f"{_label} (R²={_r2:.5f})"
-    
+
         _ax3.plot(_x_values, _logWa_values, marker='o', label=_label_with_r2)
     _ax3.set_box_aspect(1)   
     _ax3.set_xticks(np.arange(0, max(_ax3.get_xlim()) + 2.5, 2.5))
@@ -944,7 +944,6 @@ def _(
     _ax3.legend()
     _fig3.tight_layout()
     _fig3
-
     return
 
 

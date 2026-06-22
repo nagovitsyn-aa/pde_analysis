@@ -19,7 +19,7 @@ def _():
 @app.cell
 def _(mo):
     file = mo.ui.text(
-        value=r"C:\YandexDisk\Yandex.Disk\Ioffe\workspace\one_decay\1Dx\data\HDF5\Sun-W20_u=0p6.h5",
+        value=r"C:\YandexDisk\Yandex.Disk\Ioffe\workspace\one_decay\1Dx\data\delta vs zero\HDF5\comparsion\Fri-W25_u=0p316228_w0x=0p05.h5",
         label="file path",
         full_width=True,
     )
@@ -69,13 +69,13 @@ def _(data, np, plt, t_index):
     plt.legend()
 
     plt.gca()
-    return
+    return t, x
 
 
 @app.cell
 def _(compute_energy_1d, data):
     Wa = compute_energy_1d(data, "a")
-    Wb = compute_energy_1d(data, "a")
+    Wb = compute_energy_1d(data, "b")
     return Wa, Wb
 
 
@@ -92,6 +92,81 @@ def _(Wa, Wb, plt):
     plt.legend()
 
     plt.gca()
+    return
+
+
+@app.cell
+def _(np, x):
+    center_idx = np.argmin(np.abs(x))
+
+    center_idx
+    return (center_idx,)
+
+
+@app.cell
+def _(t):
+    t
+    return
+
+
+@app.cell
+def _(a_abs_center):
+    a_abs_center.shape
+    return
+
+
+@app.cell
+def _(a_im_center, a_re_center, np):
+    np.sqrt(a_re_center**2 + a_im_center**2)
+    return
+
+
+@app.cell
+def _(center_idx, data, np, plt, t):
+    t_full = data["grid"]["t"]
+
+    a_re_center = data["solution"]["aRe"][:, center_idx]
+    a_im_center = data["solution"]["aIm"][:, center_idx]
+
+    b_re_center = data["solution"]["bRe"][:, center_idx]
+    b_im_center = data["solution"]["bIm"][:, center_idx]
+
+    a_abs_center = np.sqrt(a_re_center**2 + a_im_center**2)
+    b_abs_center = np.sqrt(b_re_center**2 + b_im_center**2)
+
+    print(t.shape)
+    print(a_abs_center.shape)
+
+    plt.figure()
+
+    plt.plot(t_full, a_abs_center, label="|a(0,t)|")
+    plt.plot(t_full, b_abs_center, label="|b(0,t)|")
+
+    plt.xlabel("t")
+    plt.ylabel("amplitude")
+    plt.title("Central amplitude vs time")
+    plt.legend()
+
+    plt.gca()
+    return a_abs_center, a_im_center, a_re_center, b_abs_center, t_full
+
+
+@app.cell
+def _(t_full):
+    t_full
+    return
+
+
+@app.cell
+def _(b_abs_center):
+    b_abs_center
+    return
+
+
+@app.cell
+def _(center_idx, data):
+    x0 = data["grid"]["x"][center_idx]
+    print(f"Central node: x = {x0}")
     return
 
 
