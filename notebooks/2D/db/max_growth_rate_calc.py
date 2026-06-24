@@ -122,7 +122,8 @@ def _(np):
         max_len_internal,
         tmin_internal,
         tmax_internal,
-        peak_number=2,  # New parameter: which peak to select (1=first, 2=second, etc.)
+        peak_number=1,  # New parameter: which peak to select (1=first, 2=second, etc.)
+        half_width=0.5,  # Half-width around the peak for t_start and t_end
     ):
         mask_internal = (
             (y_arr_internal > 0) &
@@ -142,25 +143,30 @@ def _(np):
         peaks, _ = find_peaks(dlog_y_internal)
     
         if len(peaks) > 0:
+        
             sorted_peak_indices = peaks
         
             if peak_number <= len(sorted_peak_indices):
                 peak_idx = int(sorted_peak_indices[peak_number - 1])
                 slope = float(dlog_y_internal[peak_idx])
-                t_start = float(t_arr_internal[peak_idx])
-                t_end = float(t_arr_internal[peak_idx])  # or use neighboring points
+                t_peak = float(t_arr_internal[peak_idx])
+                # Set t_start and t_end with half_width around the peak
+                t_start = max(t_peak - half_width, t_arr_internal[0])
+                t_end = min(t_peak + half_width, t_arr_internal[-1])
             else:
                 # If not enough peaks, take global max
                 peak_idx = int(np.nanargmax(dlog_y_internal))
                 slope = float(dlog_y_internal[peak_idx])
-                t_start = float(t_arr_internal[peak_idx])
-                t_end = float(t_arr_internal[peak_idx])
+                t_peak = float(t_arr_internal[peak_idx])
+                t_start = max(t_peak - half_width, t_arr_internal[0])
+                t_end = min(t_peak + half_width, t_arr_internal[-1])
         else:
             # If no peaks found, take global max
             peak_idx = int(np.nanargmax(dlog_y_internal))
             slope = float(dlog_y_internal[peak_idx])
-            t_start = float(t_arr_internal[peak_idx])
-            t_end = float(t_arr_internal[peak_idx])
+            t_peak = float(t_arr_internal[peak_idx])
+            t_start = max(t_peak - half_width, t_arr_internal[0])
+            t_end = min(t_peak + half_width, t_arr_internal[-1])
     
         return (slope, t_start, t_end)
 

@@ -1,0 +1,224 @@
+{
+  "version": "1",
+  "metadata": {
+    "marimo_version": "0.23.2",
+    "script_metadata_hash": null
+  },
+  "cells": [
+    {
+      "id": "Hbol",
+      "code_hash": "58368a6d5287bafc3ebb40d7ceda9ccb",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/plain": ""
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "MJUe",
+      "code_hash": "152fb02ebf00cb3edae059f99d1f44f9",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/plain": ""
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "vblA",
+      "code_hash": "591f150054560a199166309cf7be4580",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/plain": ""
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "bkHC",
+      "code_hash": "575ac611a6b7509ae922fbccb4c0f3c7",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/plain": ""
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "lEQa",
+      "code_hash": "a3a0ce96904d8db4e7684ef3f17e3b05",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/html": "<marimo-ui-element object-id='lEQa-0' random-id='7926200a-7065-d83c-7244-c35de474df72'><marimo-text data-initial-value='&quot;data/db/simulations.db&quot;' data-label='&quot;&lt;span class=&#92;&quot;markdown prose dark:prose-invert contents&#92;&quot;&gt;&lt;span class=&#92;&quot;paragraph&#92;&quot;&gt;db path&lt;/span&gt;&lt;/span&gt;&quot;' data-placeholder='&quot;&quot;' data-kind='&quot;text&quot;' data-full-width='true' data-disabled='false' data-debounce='true'></marimo-text></marimo-ui-element>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "PKri",
+      "code_hash": "d0248f21b6ab93870f652bcda394b7c3",
+      "outputs": [
+        {
+          "type": "error",
+          "ename": "exception",
+          "evalue": "Execution failed on sql '\n    SELECT\n        r.run_id,\n        e.name AS experiment_name,\n        r.file_name,\n        r.dimension,\n        r.Lambda,\n        r.u,\n        r.tend,\n        r.x0,\n        r.rangeX,\n        r.rangeY,\n        r.dx,\n        r.dy,\n        r.status,\n        r.note,\n        r.created_at\n    FROM runs r\n    JOIN experiments e ON r.experiment_id = e.experiment_id\n    ORDER BY e.name, r.run_id\n    ': no such column: r.dimension",
+          "traceback": null
+        }
+      ],
+      "console": [
+        {
+          "type": "stream",
+          "name": "stderr",
+          "text": "<span class=\"codehilite\"><div class=\"highlight\"><pre><span></span><span class=\"gt\">Traceback (most recent call last):</span>\n  File <span class=\"nb\">&quot;C:\\Users\\nagovitsyn\\projects\\pde_analysis\\.venv\\Lib\\site-packages\\pandas\\io\\sql.py&quot;</span>, line <span class=\"m\">2702</span>, in <span class=\"n\">execute</span>\n<span class=\"w\">    </span><span class=\"n\">cur</span><span class=\"o\">.</span><span class=\"n\">execute</span><span class=\"p\">(</span><span class=\"n\">sql</span><span class=\"p\">,</span> <span class=\"o\">*</span><span class=\"n\">args</span><span class=\"p\">)</span>\n<span class=\"w\">    </span><span class=\"pm\">~~~~~~~~~~~^^^^^^^^^^^^</span>\n<span class=\"gr\">sqlite3.OperationalError</span>: <span class=\"n\">no such column: r.dimension</span>\n\n<span class=\"gt\">The above exception was the direct cause of the following exception:</span>\n\n<span class=\"gt\">Traceback (most recent call last):</span>\n  File <span class=\"nb\">&quot;C:\\Users\\nagovitsyn\\projects\\pde_analysis\\.venv\\Lib\\site-packages\\marimo\\_runtime\\executor.py&quot;</span>, line <span class=\"m\">138</span>, in <span class=\"n\">execute_cell</span>\n<span class=\"w\">    </span><span class=\"n\">exec</span><span class=\"p\">(</span><span class=\"n\">cell</span><span class=\"o\">.</span><span class=\"n\">body</span><span class=\"p\">,</span> <span class=\"n\">glbls</span><span class=\"p\">)</span>\n<span class=\"w\">    </span><span class=\"pm\">~~~~^^^^^^^^^^^^^^^^^^</span>\n  File <span class=\"nb\">&quot;C:\\Users\\nagovitsyn\\AppData\\Local\\Temp\\marimo_56284\\__marimo__cell_PKri_.py&quot;</span>, line <span class=\"m\">1</span>, in <span class=\"n\">&lt;module&gt;</span>\n<span class=\"w\">    </span><span class=\"n\">runs_df</span> <span class=\"o\">=</span> <span class=\"n\">load_table</span><span class=\"p\">(</span>\n<span class=\"w\">    </span>    <span class=\"n\">db_path</span><span class=\"o\">.</span><span class=\"n\">value</span><span class=\"p\">,</span>\n<span class=\"w\">    </span><span class=\"o\">...&lt;</span><span class=\"mi\">20</span> <span class=\"n\">lines</span><span class=\"o\">&gt;...</span>\n<span class=\"w\">    </span>    <span class=\"s2\">&quot;&quot;&quot;,</span>\n<span class=\"w\">    </span><span class=\"p\">)</span>\n  File <span class=\"nb\">&quot;C:\\Users\\nagovitsyn\\AppData\\Local\\Temp\\marimo_56284\\__marimo__cell_MJUe_.py&quot;</span>, line <span class=\"m\">7</span>, in <span class=\"n\">load_table</span>\n<span class=\"w\">    </span><span class=\"k\">return</span> <span class=\"n\">pd</span><span class=\"o\">.</span><span class=\"n\">read_sql_query</span><span class=\"p\">(</span><span class=\"n\">query</span><span class=\"p\">,</span> <span class=\"n\">conn</span><span class=\"p\">)</span>\n<span class=\"w\">           </span><span class=\"pm\">~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^</span>\n  File <span class=\"nb\">&quot;C:\\Users\\nagovitsyn\\projects\\pde_analysis\\.venv\\Lib\\site-packages\\pandas\\io\\sql.py&quot;</span>, line <span class=\"m\">497</span>, in <span class=\"n\">read_sql_query</span>\n<span class=\"w\">    </span><span class=\"k\">return</span> <span class=\"n\">pandas_sql</span><span class=\"o\">.</span><span class=\"n\">read_query</span><span class=\"p\">(</span>\n<span class=\"w\">           </span><span class=\"pm\">~~~~~~~~~~~~~~~~~~~~~^</span>\n<span class=\"w\">    </span>    <span class=\"n\">sql</span><span class=\"p\">,</span>\n<span class=\"w\">        </span><span class=\"pm\">^^^^</span>\n<span class=\"w\">    </span><span class=\"o\">...&lt;</span><span class=\"mi\">6</span> <span class=\"n\">lines</span><span class=\"o\">&gt;...</span>\n<span class=\"w\">    </span>    <span class=\"n\">dtype_backend</span><span class=\"o\">=</span><span class=\"n\">dtype_backend</span><span class=\"p\">,</span>\n<span class=\"w\">        </span><span class=\"pm\">^^^^^^^^^^^^^^^^^^^^^^^^^^^^</span>\n<span class=\"w\">    </span><span class=\"p\">)</span>\n<span class=\"w\">    </span><span class=\"pm\">^</span>\n  File <span class=\"nb\">&quot;C:\\Users\\nagovitsyn\\projects\\pde_analysis\\.venv\\Lib\\site-packages\\pandas\\io\\sql.py&quot;</span>, line <span class=\"m\">2766</span>, in <span class=\"n\">read_query</span>\n<span class=\"w\">    </span><span class=\"n\">cursor</span> <span class=\"o\">=</span> <span class=\"bp\">self</span><span class=\"o\">.</span><span class=\"n\">execute</span><span class=\"p\">(</span><span class=\"n\">sql</span><span class=\"p\">,</span> <span class=\"n\">params</span><span class=\"p\">)</span>\n  File <span class=\"nb\">&quot;C:\\Users\\nagovitsyn\\projects\\pde_analysis\\.venv\\Lib\\site-packages\\pandas\\io\\sql.py&quot;</span>, line <span class=\"m\">2714</span>, in <span class=\"n\">execute</span>\n<span class=\"w\">    </span><span class=\"k\">raise</span> <span class=\"n\">ex</span> <span class=\"kn\">from</span><span class=\"w\"> </span><span class=\"nn\">exc</span>\n<span class=\"gr\">pandas.errors.DatabaseError</span>: <span class=\"n\">Execution failed on sql &#39;</span>\n<span class=\"x\">    SELECT</span>\n<span class=\"x\">        r.run_id,</span>\n<span class=\"x\">        e.name AS experiment_name,</span>\n<span class=\"x\">        r.file_name,</span>\n<span class=\"x\">        r.dimension,</span>\n<span class=\"x\">        r.Lambda,</span>\n<span class=\"x\">        r.u,</span>\n<span class=\"x\">        r.tend,</span>\n<span class=\"x\">        r.x0,</span>\n<span class=\"x\">        r.rangeX,</span>\n<span class=\"x\">        r.rangeY,</span>\n<span class=\"x\">        r.dx,</span>\n<span class=\"x\">        r.dy,</span>\n<span class=\"x\">        r.status,</span>\n<span class=\"x\">        r.note,</span>\n<span class=\"x\">        r.created_at</span>\n<span class=\"x\">    FROM runs r</span>\n<span class=\"x\">    JOIN experiments e ON r.experiment_id = e.experiment_id</span>\n<span class=\"x\">    ORDER BY e.name, r.run_id</span>\n<span class=\"x\">    &#39;: no such column: r.dimension</span>\n</pre></div>\n</span>",
+          "mimetype": "application/vnd.marimo+traceback"
+        }
+      ]
+    },
+    {
+      "id": "Xref",
+      "code_hash": "785be284a24c248cf9bbf2feb24bae62",
+      "outputs": [
+        {
+          "type": "error",
+          "ename": "exception",
+          "evalue": "An ancestor raised an exception (DatabaseError): ",
+          "traceback": null
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "SFPL",
+      "code_hash": "1eaac764a3b2a58611b47ec02a474281",
+      "outputs": [
+        {
+          "type": "error",
+          "ename": "exception",
+          "evalue": "An ancestor raised an exception (DatabaseError): ",
+          "traceback": null
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "BYtC",
+      "code_hash": "30d8f3358c9507ce0c9f34180e88cd75",
+      "outputs": [
+        {
+          "type": "error",
+          "ename": "exception",
+          "evalue": "An ancestor raised an exception (DatabaseError): ",
+          "traceback": null
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "RGSE",
+      "code_hash": "2a520428852d9248e7692fc2bd4ecb38",
+      "outputs": [
+        {
+          "type": "error",
+          "ename": "exception",
+          "evalue": "An ancestor raised an exception (DatabaseError): ",
+          "traceback": null
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "Kclp",
+      "code_hash": "f76901c73d7dd48f5fde0f79ac5e1598",
+      "outputs": [
+        {
+          "type": "error",
+          "ename": "exception",
+          "evalue": "An ancestor raised an exception (DatabaseError): ",
+          "traceback": null
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "emfo",
+      "code_hash": "dd66bbbfa149e00661228fa2e5b6b535",
+      "outputs": [
+        {
+          "type": "error",
+          "ename": "exception",
+          "evalue": "An ancestor raised an exception (DatabaseError): ",
+          "traceback": null
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "Hstk",
+      "code_hash": "a323203100cf1d1ec775a59a70373b91",
+      "outputs": [
+        {
+          "type": "error",
+          "ename": "exception",
+          "evalue": "An ancestor raised an exception (DatabaseError): ",
+          "traceback": null
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "nWHF",
+      "code_hash": "9af808d50990c325531993498977621b",
+      "outputs": [
+        {
+          "type": "error",
+          "ename": "multiple-defs",
+          "evalue": "The variable 'merged' was defined by another cell",
+          "traceback": []
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "iLit",
+      "code_hash": "f89b96b04ced13691015436992cfa1d3",
+      "outputs": [
+        {
+          "type": "error",
+          "ename": "multiple-defs",
+          "evalue": "The variable 'merged' was defined by another cell",
+          "traceback": []
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "ZHCJ",
+      "code_hash": "83d6a4d26c39154e443e011e1e6a2c4a",
+      "outputs": [
+        {
+          "type": "error",
+          "ename": "exception",
+          "evalue": "An ancestor raised an exception (DatabaseError): ",
+          "traceback": null
+        }
+      ],
+      "console": []
+    }
+  ]
+}
