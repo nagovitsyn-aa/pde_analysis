@@ -6,6 +6,7 @@ def create_run(
     experiment_id,
     params,
     file_name,
+    dimension,
     h5_path=None,
     status="success",
     note=None
@@ -20,6 +21,7 @@ def create_run(
             experiment_id,
             file_name,
             h5_path,
+            dimension,
             params_json,
             status,
             note,
@@ -32,11 +34,12 @@ def create_run(
             dx,
             dy
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
         experiment_id,
         file_name,
         h5_path,
+        dimension,
         json.dumps(params),
         status,
         note,

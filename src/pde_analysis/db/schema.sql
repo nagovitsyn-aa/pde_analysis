@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS runs (
 
     file_name TEXT NOT NULL,
     h5_path TEXT,
+    dimension TEXT NOT NULL,
     params_json TEXT NOT NULL,
 
     Lambda REAL,

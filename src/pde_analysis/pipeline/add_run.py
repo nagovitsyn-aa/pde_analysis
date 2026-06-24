@@ -12,17 +12,21 @@ from pde_analysis.processing.compute import compute_metrics
 import json
 
 
-def run_exists(conn, h5_path):
+def run_exists(conn, file_name):
     cursor = conn.cursor()
     cursor.execute(
-        "SELECT run_id FROM runs WHERE h5_path = ?",
-        (h5_path,)
+        "SELECT run_id FROM runs WHERE file_name = ?",
+        (file_name,)
     )
     return cursor.fetchone()
 
 
 
-def add_run_from_h5(experiment_name: str, h5_path: str | Path):
+def add_run_from_h5(
+    experiment_name: str,
+    h5_path: str | Path,
+    dimension: str,
+):
     """
     Главная функция добавления одного расчёта в БД.
     """
@@ -64,6 +68,7 @@ def add_run_from_h5(experiment_name: str, h5_path: str | Path):
             experiment_id=experiment_id,
             params=params,
             file_name=file_name,
+            dimension=dimension,
             h5_path=str(h5_path),
             status=status,
             note=note

@@ -138,14 +138,14 @@ def _(np):
 
         log_y_internal = np.log(y_arr_internal)
         dlog_y_internal = np.gradient(log_y_internal, t_arr_internal)
-    
+
         # Find peaks in the derivative
         peaks, _ = find_peaks(dlog_y_internal)
-    
+
         if len(peaks) > 0:
-        
+
             sorted_peak_indices = peaks
-        
+
             if peak_number <= len(sorted_peak_indices):
                 peak_idx = int(sorted_peak_indices[peak_number - 1])
                 slope = float(dlog_y_internal[peak_idx])
@@ -167,7 +167,7 @@ def _(np):
             t_peak = float(t_arr_internal[peak_idx])
             t_start = max(t_peak - half_width, t_arr_internal[0])
             t_end = min(t_peak + half_width, t_arr_internal[-1])
-    
+
         return (slope, t_start, t_end)
 
     return (find_increment_internal,)
