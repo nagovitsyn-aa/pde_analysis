@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.23.1"
+__generated_with = "0.23.2"
 app = marimo.App()
 
 
@@ -20,7 +20,7 @@ def _():
 @app.cell
 def _(mo):
     folder_ui = mo.ui.text(
-        value=r"C:\YandexDisk\Ioffe\workspace\one_decay\2D\data\sol\comparsion",
+        value=r"C:\YandexDisk\Ioffe\workspace\one_decay\2D\data\sol\comparsion_gauss",
         label="data folder",
         full_width=True,
     )
@@ -50,18 +50,18 @@ def _(files, mo):
 
 
 @app.cell
-def _(compute_energy, files_checkbox, load_h5_solver_file):
+def _(compute_energy, field_ui, files_checkbox, load_h5_solver_file):
     energy_data = []
 
     for filepath in files_checkbox.value:
         data_obj = load_h5_solver_file(filepath)
-        Wa = compute_energy(data_obj, "a")
+        energy = compute_energy(data_obj, field_ui.value)
 
         energy_data.append(
             {
                 "file": filepath,
-                "t": Wa["t"],
-                "W": Wa["W"],
+                "t": energy["t"],
+                "W": energy["W"],
             }
         )
     return (energy_data,)
@@ -94,7 +94,19 @@ def _(mo):
 
 
 @app.cell
-def _(energy_data, plt, scale_ui, visibility_ui):
+def _(mo):
+    field_ui = mo.ui.radio(
+        options=["a", "b"],
+        value="a",
+        label="field",
+    )
+
+    field_ui
+    return (field_ui,)
+
+
+@app.cell
+def _(energy_data, field_ui, plt, scale_ui, visibility_ui):
     fig = plt.figure()
 
     for item in energy_data:
@@ -118,7 +130,7 @@ def _(energy_data, plt, scale_ui, visibility_ui):
         plt.yscale("log")
 
     plt.xlabel("t")
-    plt.ylabel("Wa (normalized to first point)")
+    plt.ylabel(f"W{field_ui.value} (normalized to first point)")
     plt.legend()
     plt.gca()  
     return

@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.22.0"
+__generated_with = "0.23.2"
 app = marimo.App()
 
 
@@ -18,7 +18,7 @@ def _():
 @app.cell
 def _(mo):
     file = mo.ui.text(
-        value=r"C:\YandexDisk\Ioffe\workspace\one_decay\2D\data\sol\comparsion\LSODA_Wed-W15_dx=0.02_Λ=0p1_u=1p.h5",
+        value=r"C:\YandexDisk\Ioffe\workspace\one_decay\2D\data\sol\comparsion_gauss\LSODA_Wed-W26_dx=0.05_Λ=0p01_u=0p316228.h5",
         label="file path",
         full_width=True,
     )

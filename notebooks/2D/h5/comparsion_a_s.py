@@ -6,17 +6,17 @@ app = marimo.App()
 
 @app.cell
 def _():
-    file = r"C:\\YandexDisk\\Ioffe\\workspace\\one_decay\\2D\\data\\sol\\comparsion\\fullRange_TD_LSODA_Mon-W17_dx=0.02_Λ=0p1_u=1p.h5"
+    file = r"C:\YandexDisk\Ioffe\workspace\one_decay\2D\data\sol\comparsion_gauss\LSODA_Tue-W27_dx=0.05_Λ=0p1_u=1.h5"
 
-    dat_3t = r"C:\YandexDisk\Ioffe\workspace\tempdata\a_b_3t.dat"
-    dat_6t = r"C:\YandexDisk\Ioffe\workspace\tempdata\a_b_6t.dat"
-    dat_Wa = r"C:\YandexDisk\Ioffe\workspace\tempdata\Wa(t).dat"
+    dat_3t = r"C:\YandexDisk\Ioffe\workspace\one_decay\2D\data\sol\comparsion_gauss\centr_a_b_3t_1u_1e-1D.dat"
+    dat_6t = r"C:\YandexDisk\Ioffe\workspace\one_decay\2D\data\sol\comparsion_gauss\centr_a_b_6t_1u_1e-1D.dat"
+    dat_Wa = r"C:\YandexDisk\Ioffe\workspace\one_decay\2D\data\sol\comparsion_gauss\centr_Wa_Wb_1u_1e-1D.dat"
 
-    xmin, xmax = -20, 20
+    xmin, xmax = -10, 10
 
     t_val_3 = 3.0
     t_val_6 = 6.0
-    z_val = 0.1
+    z_val = 0.0
 
     t_min, t_max = 0, 15
     return (
@@ -44,9 +44,10 @@ def _(file):
 
 @app.cell
 def _():
+    import marimo as mo
     import matplotlib.pyplot as plt
     from pde_analysis.analysis import get_profile_at_tz, crop_x, compute_energy
-    from pde_analysis.io_dat import load_ab_dat, load_Wa
+    from pde_analysis.io_dat import load_ab_dat, load_Wa_Wb
     import numpy as np
 
 
@@ -54,8 +55,9 @@ def _():
         compute_energy,
         crop_x,
         get_profile_at_tz,
-        load_Wa,
+        load_Wa_Wb,
         load_ab_dat,
+        mo,
         np,
         plt,
     )
@@ -89,8 +91,8 @@ def _(crop_x, get_profile_at_tz, load_ab_dat, np, plt):
 
         plt.figure()
 
-        plt.plot(x_a, a, label="|a| A")
-        plt.plot(x_b, b, label="|b| A")
+        plt.plot(x_a, a, alpha=0.6, label="|a| A")
+        plt.plot(x_b, b, alpha=0.6, label="|b| A")
 
         plt.plot(x_dat, a_dat, "--", label="|a| S")
         plt.plot(x_dat, b_dat, "--", label="|b| S")
@@ -118,29 +120,96 @@ def _(dat_6t, data, plot_profile, t_val_6, xmax, xmin, z_val):
 
 
 @app.cell
-def _(compute_energy, dat_Wa, data, load_Wa, t_max, t_min):
-    Wa_model = compute_energy(data, "a", t_min, t_max)
-    Wa_dat = load_Wa(dat_Wa)
-    return Wa_dat, Wa_model
+def _(mo):
+    energy_field = mo.ui.radio(
+        options=[
+            "Wa",
+            "Wb",
+            "Wa + Wb",
+        ],
+        value="Wa",
+        label="Energy",
+    )
+
+    normalize = mo.ui.switch(
+        value=True,
+        label="Normalize",
+    )
+
+    mo.vstack([
+        energy_field,
+        normalize,
+    ])
+    return energy_field, normalize
 
 
 @app.cell
-def _(Wa_dat, Wa_model, plt):
+def _(compute_energy, dat_Wa, data, load_Wa_Wb, t_max, t_min):
+    Wa_model = compute_energy(data, "a", t_min, t_max)
+    Wb_model = compute_energy(data, "b", t_min, t_max)
 
-    W_model_norm = Wa_model["W"] / Wa_model["W"][0]
-    Wa_dat_norm = Wa_dat["Wa"] / Wa_dat["Wa"][0]
+    energy_dat = load_Wa_Wb(dat_Wa)
+    return Wa_model, Wb_model, energy_dat
+
+
+@app.cell
+def _(Wa_model, Wb_model, energy_dat, energy_field, normalize, np, plt):
+
+    def maybe_normalize(values):
+        if not normalize.value:
+            return values
+
+        if np.isclose(values[0], 0.0):
+            print("Warning: first value is zero, normalization skipped.")
+            return values
+
+        return values / values[0]
 
     plt.figure()
-    plt.plot(Wa_model["t"], W_model_norm, label="A (norm)")
-    plt.plot(Wa_dat["t"], Wa_dat_norm, "--", label="S (norm)")
+
+    mode = energy_field.value
+
+    if mode in ("Wa", "Wa + Wb"):
+        plt.plot(
+            Wa_model["t"],
+            2*maybe_normalize(Wa_model["W"]),
+            alpha=0.8,
+            label="Wa A",
+        )
+
+        plt.plot(
+            energy_dat["t"],
+            maybe_normalize(energy_dat["Wa"]),
+            "--",
+            label="Wa S",
+        )
+
+    if mode in ("Wb", "Wa + Wb"):
+        plt.plot(
+            Wb_model["t"],
+            2*maybe_normalize(Wb_model["W"]),
+            alpha=0.6,
+            label="Wb A",
+        )
+
+        plt.plot(
+            energy_dat["t"],
+            maybe_normalize(energy_dat["Wb"]),
+            "--",
+            label="Wb S",
+        )
+
+    ylabel = "Energy"
+
+    if normalize.value:
+        ylabel += " / first value"
 
     plt.xlabel("t")
-    plt.ylabel("Wa / Wa(t0)")  
+    plt.ylabel(ylabel)
+    plt.title(mode)
     plt.legend()
-    plt.title("Energy comparison")
 
-    # plt.yscale('log') 
-    plt.show()
+    plt.gca()
     return
 
 
