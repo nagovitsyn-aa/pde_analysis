@@ -1,7 +1,7 @@
 import marimo
 
 __generated_with = "0.23.2"
-app = marimo.App()
+app = marimo.App(layout_file="layouts/max_growth_rate_calc.grid.json")
 
 
 @app.cell
@@ -67,6 +67,15 @@ def _(mo):
 
 
 @app.cell
+def _(mode_selector):
+    if mode_selector.value == "fixed_u":
+        char_label = "\Lambda"
+    else:
+        char_label = "u"
+    return (char_label,)
+
+
+@app.cell
 def _(df_data, mo):
     u_vals_local = sorted(df_data["u"].dropna().unique())
     L_vals_local = sorted(df_data["Lambda"].dropna().unique())
@@ -92,7 +101,7 @@ def _(mo):
     min_len_selector = mo.ui.slider(start=2, stop=50, value=3)
     max_len_selector = mo.ui.slider(start=4, stop=100, value=10)
 
-    tmin_selector = mo.ui.number(value=2.0, step=0.1, label="t_min")
+    tmin_selector = mo.ui.number(value=0.0, step=0.1, label="t_min")
     tmax_selector = mo.ui.number(value=5.0, label="t_max")
 
     legend_position_selector = mo.ui.radio(
@@ -122,7 +131,7 @@ def _(np):
         max_len_internal,
         tmin_internal,
         tmax_internal,
-        peak_number=1,  # New parameter: which peak to select (1=first, 2=second, etc.)
+        peak_number=2,  # New parameter: which peak to select (1=first, 2=second, etc.)
         half_width=0.5,  # Half-width around the peak for t_start and t_end
     ):
         mask_internal = (
@@ -239,7 +248,7 @@ def _(grouped_output, np):
                 "slope_array": slope_vals,
             }
         )
-    return (slope_output,)
+    return slope_output, slope_vals
 
 
 @app.cell
@@ -278,7 +287,14 @@ def _(
 
 
 @app.cell
+def _(grouped_output):
+    grouped_output[0]["t_array"]
+    return
+
+
+@app.cell
 def _(
+    char_label,
     grouped_output,
     legend_position_selector,
     mode_selector,
@@ -290,9 +306,9 @@ def _(
 
     for entry_plot in grouped_output:
         plt.plot(
-            entry_plot["t_array"],
-            entry_plot["y_array"],
-            label=entry_plot["label_local"]
+            entry_plot["t_array"],  # ось абсцисс: ν₀ t
+            entry_plot["y_array"],  # ось ординат: ∫∫ dx dz |a|²
+            label=fr"${char_label}={entry_plot["label_local"]}$"
         )
 
         if mode_selector.value == "fixed_u":
@@ -311,6 +327,9 @@ def _(
         plt.yscale("log")
 
     plt.grid()
+    plt.xlabel(r'$\nu_0 t$')  # подпись оси абсцисс
+    plt.ylabel(r'$W_a$')  # подпись оси ординат
+
     if legend_position_selector.value == "inside":
         plt.legend()
 
@@ -324,27 +343,90 @@ def _(
 
 
 @app.cell
-def _(legend_position_selector, plt, slope_output):
+def _(
+    char_label,
+    fit_output,
+    legend_position_selector,
+    np,
+    plt,
+    slope_output,
+    slope_vals,
+):
     plt.figure()
 
+    # Создаем словарь для быстрого доступа к fit данным по label
+    fit_dict = {entry["label_local"]: entry["fit"] for entry in fit_output if "fit" in entry}
+    slope_vals
     for entry_plot2 in slope_output:
-        plt.plot(entry_plot2["t_array"], entry_plot2["slope_array"], label=entry_plot2["label_local"])
-
+        t_vals_slope = entry_plot2["t_array"]
+        _slope_vals = entry_plot2["slope_array"]
+        label = entry_plot2["label_local"]
+    
+        # Основная линия
+        line_main_slope, = plt.plot(t_vals_slope, _slope_vals, label=fr"${char_label}={label}$", alpha=0.6)
+    
+        color_slope = line_main_slope.get_color()
+    
+        # Пытаемся получить fit данные из fit_output
+        if label in fit_dict:
+            fit_data = fit_dict[label]
+            if fit_data is not None and len(fit_data) >= 3:
+                slope_val_max, t_start_slope, t_end_slope = fit_data
+            
+                # Маска для выделенного участка
+                mask_slope = (t_vals_slope >= t_start_slope) & (t_vals_slope <= t_end_slope)
+            
+                # Выделяем участок
+                plt.plot(
+                    t_vals_slope[mask_slope],
+                    _slope_vals[mask_slope],
+                    linewidth=4,
+                    color=color_slope,
+                )
+            
+        else:
+            # Если fit данных нет, находим максимум из массива
+            max_slope_idx = np.argmax(_slope_vals)
+            max_slope_value = _slope_vals[max_slope_idx]
+        
+            # Выделяем окрестность максимума
+            half_window = 1
+            start_idx = max(0, max_slope_idx - half_window)
+            end_idx = min(len(t_vals_slope), max_slope_idx + half_window + 1)
+        
+            mask_slope = np.zeros(len(t_vals_slope), dtype=bool)
+            mask_slope[start_idx:end_idx] = True
+        
+            plt.plot(
+                t_vals_slope[mask_slope],
+                _slope_vals[mask_slope],
+                linewidth=4,
+                color=color_slope,
+            )
+        
     plt.grid()
     if legend_position_selector.value == "inside":
         plt.legend()
-
     elif legend_position_selector.value == "right":
         plt.legend(loc="center left", bbox_to_anchor=(1, 0.5))
-
-    else:  # outside
+    else:
         plt.legend(loc="upper left", bbox_to_anchor=(1.05, 1))
+
+    plt.xlabel(r'$\nu_0 t$')
+    plt.ylabel(r'$d(\ln W_a)/dt$')
     plt.gca()
     return
 
 
 @app.cell
-def _(fit_output, legend_position_selector, np, plt, scale_selector):
+def _(
+    char_label,
+    fit_output,
+    legend_position_selector,
+    np,
+    plt,
+    scale_selector,
+):
     plt.figure()
 
     for entry_plot3 in fit_output:
@@ -367,7 +449,7 @@ def _(fit_output, legend_position_selector, np, plt, scale_selector):
                 y_vals_local[mask_val_local],
                 linewidth=4,
                 color=color_local,
-                label=f"L={entry_plot3['label_local']} 2γ={slope_val_local:.3f}",
+                label=fr"${char_label}={entry_plot3['label_local']} ,\; 2γ={slope_val_local:.3f}$",
             )
 
             u_val_local3 = entry_plot3["u_val"]
@@ -393,6 +475,9 @@ def _(fit_output, legend_position_selector, np, plt, scale_selector):
 
     else:  # outside
         plt.legend(loc="upper left", bbox_to_anchor=(1.05, 1))
+
+    plt.xlabel(r'$\nu_0 t$')  # подпись оси абсцисс
+    plt.ylabel(r'$W_a$')  # подпись оси ординат
     plt.gca()
     return
 
@@ -545,7 +630,8 @@ def _(
             return gamma
 
     fig, ax = plt.subplots()
-    colors = plt.cm.tab10.colors
+    num_colors = 12
+    colors = plt.cm.plasma(np.linspace(0, 1, num_colors))
 
     # ========================
     # vs Lambda
@@ -555,7 +641,8 @@ def _(
         for item in increment_param_data:
             grouped_by_u[item["u"]].append(item)
 
-        for i, (current_u_val, items) in enumerate(grouped_by_u.items()):
+        # Добавляем счетчик i для индексации цвета
+        for i, (current_u_val, items) in enumerate(sorted(grouped_by_u.items(), key=lambda x: x[0])):
             items_sorted = sorted(items, key=lambda x: x["Lambda"])
             lam = np.array([it["Lambda"] for it in items_sorted])
             gamma_vals = np.array([it["gamma"] for it in items_sorted])
@@ -579,17 +666,18 @@ def _(
             mask = (Lambda_num >= lam_min) & (Lambda_num <= lam_max)
             ax.plot(Lambda_num[mask], gamma_num[mask], color="gray", linestyle="-", label=r"$2\gamma_{1Dz}^{num}$")
 
-        ax.set_xlabel("Lambda")
+        ax.set_xlabel("Λ")
 
     # ========================
-    # vs u
+    # vs u (СОРТИРОВКА ПО ВОЗРАСТАНИЮ LAMBDA)
     # ========================
     else:
         grouped_by_lambda = defaultdict(list)
         for item in increment_param_data:
             grouped_by_lambda[item["Lambda"]].append(item)
 
-        for i, (lam_val, items) in enumerate(grouped_by_lambda.items()):
+        # СОРТИРОВКА по возрастанию Lambda (ключ сортировки)
+        for i, (lam_val, items) in enumerate(sorted(grouped_by_lambda.items(), key=lambda x: x[0])):
             items_sorted = sorted(items, key=lambda x: x["u"])
             u_vals = np.array([it["u"] for it in items_sorted])
             gamma_vals = np.array([it["gamma"] for it in items_sorted])
@@ -616,7 +704,7 @@ def _(
         elif normalization_type_selector.value == "1Dz*1Dx":
             ax.set_ylabel(r"$\gamma / (\gamma_{1Dz}^{num} \gamma_{1Dx}^{num})$")
     else:
-        ax.set_ylabel("gamma")
+        ax.set_ylabel(r"$2\gamma$")
 
     ax.grid()
 
