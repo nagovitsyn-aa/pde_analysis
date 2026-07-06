@@ -614,10 +614,10 @@ def _(legend_position_selector, np, plt, u_max, u_min, wsat_param_data):
         _items_sorted = sorted(_items, key=lambda x: x["u"])
         _u_vals = np.array([it["u"] for it in _items_sorted], dtype=float)
         _wsat_vals = np.array([np.log(it["Wsat"]) for it in _items_sorted], dtype=float)
-    
+
         # Новая координата X: 2π/u²
         _x_vals = 2 * np.pi / (_u_vals ** 2)
-    
+
         _ax2.plot(_x_vals, _wsat_vals, marker="o", label=f"Λ={_lam_val}")
 
     # Эталонная прямая линия (y = x, так как log(exp(2π/u²)) = 2π/u²)
@@ -659,10 +659,10 @@ def _(legend_position_selector, np, plt, wsat_param_data):
         _items_sorted = sorted(_items, key=lambda x: x["Lambda"])
         _lam_vals = np.array([it["Lambda"] for it in _items_sorted], dtype=float)
         _wsat_vals = np.array([np.log(it["Wsat"]) for it in _items_sorted], dtype=float)
-    
+
         # Основная линия с точками
         _line, = _ax.plot(_lam_vals, _wsat_vals, marker="o", label=f"u={_u_val}")
-    
+
         # Горизонтальная пунктирная линия на уровне 2π/u²
         _level = np.exp(2 * np.pi / (_u_val ** 2))
         _ax.axhline(
@@ -676,6 +676,116 @@ def _(legend_position_selector, np, plt, wsat_param_data):
     _ax.set_xlabel("Λ")
     _ax.set_ylabel(r"$\log(W_{sat})$")
     _ax.grid()
+
+    if legend_position_selector.value == "inside":
+        _ax.legend()
+    elif legend_position_selector.value == "right":
+        _ax.legend(loc="center left", bbox_to_anchor=(1, 0.5))
+    else:
+        _ax.legend(loc="upper left", bbox_to_anchor=(1.05, 1))
+
+    _fig
+    return
+
+
+@app.cell(hide_code=True)
+def _(
+    gamma_eff_mode_selector,
+    gamma_x_interp,
+    increment_param_data,
+    legend_position_selector,
+    np,
+    plt,
+    wsat_param_data,
+):
+    _fig, _ax = plt.subplots()
+
+    _wsat_lookup = {
+        (_item["u"], _item["Lambda"]): _item["Wsat"]
+        for _item in wsat_param_data
+    }
+
+    _lambda_colors = {
+        _lam_val: color
+        for _lam_val, color in zip(
+            sorted({item["Lambda"] for item in increment_param_data}),
+            plt.cm.tab10(np.linspace(0, 1, max(1, len({item["Lambda"] for item in increment_param_data})))),
+        )
+    }
+    _u_markers = {
+        _u_val: marker
+        for _u_val, marker in zip(
+            sorted({item["u"] for item in increment_param_data}),
+            ["o", "s", "^", "D", "P", "X", "v", ">", "<", "p", "*", "h"],
+        )
+    }
+
+    _x_vals = []
+    _y_vals = []
+
+    for _item in increment_param_data:
+        _u_val = _item["u"]
+        _lam_val = _item["Lambda"]
+        _gamma_val = _item["gamma"]
+        _wsat_val = _wsat_lookup.get((_u_val, _lam_val), np.nan)
+
+        if gamma_eff_mode_selector.value == "gamma_num_2D":
+            _gamma_eff_val = _gamma_val / 2.0
+        else:
+            _gamma_eff_val = _gamma_val / gamma_x_interp(_u_val)
+
+        _x_val = 2 * np.pi / (_u_val ** 2) * (_gamma_eff_val ** 2)
+        _y_val = np.log(_wsat_val)
+
+        if np.isfinite(_x_val) and np.isfinite(_y_val):
+            _x_vals.append(_x_val)
+            _y_vals.append(_y_val)
+            _ax.plot(
+                _x_val,
+                _y_val,
+                linestyle="None",
+                marker=_u_markers[_u_val],
+                color=_lambda_colors[_lam_val],
+                markersize=6,
+                alpha=0.8,
+            )
+
+    if _x_vals and _y_vals:
+        _x_arr = np.array(_x_vals, dtype=float)
+        _y_arr = np.array(_y_vals, dtype=float)
+        _coef = np.polyfit(_x_arr, _y_arr, 1)
+        _fit_slope = _coef[0]
+        _fit_intercept = _coef[1]
+        _fit_vals = _fit_slope * _x_arr + _fit_intercept
+        _ss_res = np.sum((_y_arr - _fit_vals) ** 2)
+        _ss_tot = np.sum((_y_arr - np.mean(_y_arr)) ** 2)
+        _r_squared = 1.0 - _ss_res / _ss_tot if _ss_tot > 0 else np.nan
+        _x_fit = np.linspace(np.min(_x_arr), np.max(_x_arr), 200)
+        _y_fit = _fit_slope * _x_fit + _fit_intercept
+        _ax.plot(_x_fit, _y_fit, color="black", linewidth=2, linestyle="--")
+        _ax.text(
+            0.02,
+            0.98,
+            (
+                f"slope = {_fit_slope:.3f} \n"
+                f"intercept = {_fit_intercept:.3f} \n"
+                rf"$R^2$ = {_r_squared:.3f}"
+            ),
+            transform=_ax.transAxes,
+            va="top",
+            ha="left",
+            fontsize=10,
+            bbox={"boxstyle": "round", "facecolor": "white", "alpha": 0.8},
+        )
+
+    if gamma_eff_mode_selector.value == "gamma_num_2D":
+        _x_label = r"$2\pi / u^2 \cdot \gamma^2_{2D} (u,\Lambda)$"
+    else:
+        _x_label = r"$2\pi / u^2 \cdot (\gamma_{2D}(u,\Lambda)/\gamma_{1Dx}(u))^2$"
+
+    _ax.set_xlabel(_x_label)
+    _ax.set_ylabel(r"$\log(W_{sat})$")
+    _ax.grid(True)
 
     if legend_position_selector.value == "inside":
         _ax.legend()
@@ -706,8 +816,15 @@ def _(mo):
         value="1Dz",
         label="Normalization type",
     )
-    normalized_selector, param_mode_selector, normalization_type_selector
+
+    gamma_eff_mode_selector = mo.ui.radio(
+        options=["gamma_num_2D", "gamma2D_per_gamma1Dx"],
+        value="gamma_num_2D",
+        label="gamma_eff mode",
+    )
+    normalized_selector, param_mode_selector, normalization_type_selector, gamma_eff_mode_selector
     return (
+        gamma_eff_mode_selector,
         normalization_type_selector,
         normalized_selector,
         param_mode_selector,
@@ -921,17 +1038,7 @@ def _(
     else:
         _ax.legend(loc="upper left", bbox_to_anchor=(1.05, 1))
     _fig
-    return
-
-
-@app.cell
-def _():
-    return
-
-
-@app.cell
-def _():
-    return
+    return (gamma_x_interp,)
 
 
 if __name__ == "__main__":
