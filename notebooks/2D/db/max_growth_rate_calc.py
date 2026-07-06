@@ -99,7 +99,7 @@ def _(mo):
 @app.cell
 def _(mode_selector):
     if mode_selector.value == "fixed_u":
-        char_label = "\Lambda"
+        char_label = r"\Lambda"
     else:
         char_label = "u"
     return (char_label,)
@@ -148,6 +148,14 @@ def _(mo):
         tmax_selector,
         tmin_selector,
     )
+
+
+@app.cell
+def _(mo):
+    t_amp_min_selector = mo.ui.number(value=0.0, step=0.1, label="t_amp_min")
+    t_amp_max_selector = mo.ui.number(value=5.0, label="t_amp_max")
+    t_amp_min_selector, t_amp_max_selector
+    return t_amp_max_selector, t_amp_min_selector
 
 
 @app.cell
@@ -573,36 +581,131 @@ def _(
     increment_param_data = []
 
     if ts_selector.value is not None:
-        df_tmp = df_filtered[df_filtered["ts_name"] == ts_selector.value]
+        _df_tmp = df_filtered[df_filtered["ts_name"] == ts_selector.value]
 
-        grouped = df_tmp.groupby(["u", "Lambda"])
+        _grouped = _df_tmp.groupby(["u", "Lambda"])
 
-        for (u_val, L_val), df_group_2 in grouped:
-            t_arr = df_group_2["t"].values
-            y_arr = df_group_2["value"].values
+        for (_u_val, _L_val), _df_group_2 in _grouped:
+            _t_arr = _df_group_2["t"].values
+            _y_arr = _df_group_2["value"].values
 
-            res = find_increment_internal(
-                t_arr,
-                y_arr,
+            _res = find_increment_internal(
+                _t_arr,
+                _y_arr,
                 min_len_selector.value,
                 max_len_selector.value,
                 tmin_selector.value,
                 tmax_selector.value,
             )
 
-            if res is None:
+            if _res is None:
                 continue
 
-            slope_val, _, _ = res
+            _slope_val, _, _ = _res
 
             increment_param_data.append(
                 {
-                    "u": u_val,
-                    "Lambda": L_val,
-                    "gamma": slope_val,
+                    "u": _u_val,
+                    "Lambda": _L_val,
+                    "gamma": _slope_val,
                 }
             )
     return (increment_param_data,)
+
+
+@app.cell
+def _(df_filtered, np, t_amp_max_selector, t_amp_min_selector, ts_selector):
+    wsat_param_data = []
+
+    if ts_selector.value is not None:
+        _df_tmp = df_filtered[df_filtered["ts_name"] == ts_selector.value]
+
+        _grouped = _df_tmp.groupby(["u", "Lambda"])
+
+        for (_u_val, _L_val), _df_group_2 in _grouped:
+            _t_arr = _df_group_2["t"].values
+            _y_arr = _df_group_2["value"].values
+
+            _mask_amp = (
+                (_t_arr >= t_amp_min_selector.value) &
+                (_t_arr <= t_amp_max_selector.value)
+            )
+            _t_amp = _t_arr[_mask_amp]
+            _y_amp = _y_arr[_mask_amp]
+
+            if len(_t_amp) == 0:
+                continue
+
+            _wsat_val = float(np.nanmax(_y_amp))
+            wsat_param_data.append(
+                {
+                    "u": _u_val,
+                    "Lambda": _L_val,
+                    "Wsat": _wsat_val,
+                }
+            )
+    return (wsat_param_data,)
+
+
+@app.cell
+def _(legend_position_selector, np, plt, wsat_param_data):
+    from collections import defaultdict as _defaultdict
+
+    _fig, _ax = plt.subplots()
+    _grouped_by_lambda = _defaultdict(list)
+
+    for _item in wsat_param_data:
+        _grouped_by_lambda[_item["Lambda"]].append(_item)
+
+    for _i, (_lam_val, _items) in enumerate(sorted(_grouped_by_lambda.items(), key=lambda x: x[0])):
+        _items_sorted = sorted(_items, key=lambda x: x["u"])
+        _u_vals = np.array([it["u"] for it in _items_sorted], dtype=float)
+        _wsat_vals = np.array([np.log(it["Wsat"]) for it in _items_sorted], dtype=float)
+        _ax.plot(_u_vals, _wsat_vals, marker="o", label=f"Λ={_lam_val}")
+
+    _ax.set_xlabel("u")
+    _ax.set_ylabel(r"$\log(W_{sat})$")
+    _ax.grid()
+
+    if legend_position_selector.value == "inside":
+        _ax.legend()
+    elif legend_position_selector.value == "right":
+        _ax.legend(loc="center left", bbox_to_anchor=(1, 0.5))
+    else:
+        _ax.legend(loc="upper left", bbox_to_anchor=(1.05, 1))
+    _fig
+    return
+
+
+@app.cell
+def _(legend_position_selector, np, plt, wsat_param_data):
+    from collections import defaultdict as _defaultdict
+
+    _fig, _ax = plt.subplots()
+    _grouped_by_u = _defaultdict(list)
+
+    for _item in wsat_param_data:
+        _grouped_by_u[_item["u"]].append(_item)
+
+    for _i, (_u_val, _items) in enumerate(sorted(_grouped_by_u.items(), key=lambda x: x[0])):
+        _items_sorted = sorted(_items, key=lambda x: x["Lambda"])
+        _lam_vals = np.array([it["Lambda"] for it in _items_sorted], dtype=float)
+        _wsat_vals = np.array([np.log(it["Wsat"]) for it in _items_sorted], dtype=float)
+        _ax.plot(_lam_vals, _wsat_vals, marker="o", label=f"u={_u_val}")
+
+    _ax.set_xlabel("Λ")
+    _ax.set_ylabel(r"$\log(W_{sat})$")
+    _ax.grid()
+
+    if legend_position_selector.value == "inside":
+        _ax.legend()
+    elif legend_position_selector.value == "right":
+        _ax.legend(loc="center left", bbox_to_anchor=(1, 0.5))
+    else:
+        _ax.legend(loc="upper left", bbox_to_anchor=(1.05, 1))
+
+    _fig
+    return
 
 
 @app.cell
@@ -619,7 +722,7 @@ def _(
     plt,
 ):
     from scipy.interpolate import interp1d
-    from collections import defaultdict
+    from collections import defaultdict as _defaultdict
 
     # ---- Данные для 1Dx ----
     gauss_w0_0p5 = [
@@ -653,93 +756,92 @@ def _(
         else:
             return gamma
 
-    fig, ax = plt.subplots()
-    num_colors = 12
-    colors = plt.cm.plasma(np.linspace(0, 1, num_colors))
+    _fig, _ax = plt.subplots()
+    _num_colors = 12
+    _colors = plt.cm.plasma(np.linspace(0, 1, _num_colors))
 
     # ========================
     # vs Lambda
     # ========================
     if param_mode_selector.value == "vs_Lambda":
-        grouped_by_u = defaultdict(list)
-        for item in increment_param_data:
-            grouped_by_u[item["u"]].append(item)
+        _grouped_by_u = _defaultdict(list)
+        for _item in increment_param_data:
+            _grouped_by_u[_item["u"]].append(_item)
 
         # Добавляем счетчик i для индексации цвета
-        for i, (current_u_val, items) in enumerate(sorted(grouped_by_u.items(), key=lambda x: x[0])):
-            items_sorted = sorted(items, key=lambda x: x["Lambda"])
-            lam = np.array([it["Lambda"] for it in items_sorted])
-            gamma_vals = np.array([it["gamma"] for it in items_sorted])
-            color = colors[i % len(colors)]
+        for _i, (current_u_val, _items) in enumerate(sorted(_grouped_by_u.items(), key=lambda x: x[0])):
+            _items_sorted = sorted(_items, key=lambda x: x["Lambda"])
+            _lam = np.array([it["Lambda"] for it in _items_sorted])
+            _gamma_vals = np.array([it["gamma"] for it in _items_sorted])
+            _color = _colors[_i % len(_colors)]
 
-            ax.plot(
-                lam,
-                get_norm_factor(gamma_vals, current_u_val, lam),
-                color=color,
+            _ax.plot(
+                _lam,
+                get_norm_factor(_gamma_vals, current_u_val, _lam),
+                color=_color,
                 linestyle="-",
                 label=f"u={current_u_val}",
             )
 
-        lam_min = np.min([it["Lambda"] for it in increment_param_data])
-        lam_max = np.max([it["Lambda"] for it in increment_param_data])
+        _lam_min = np.min([it["Lambda"] for it in increment_param_data])
+        _lam_max = np.max([it["Lambda"] for it in increment_param_data])
 
         if not normalized_selector.value:
-            lam_grid = np.linspace(lam_min, lam_max, 300)
-            gamma_approx = 2.0 / (1.0 + 2.0 * lam_grid / np.pi)
-            ax.plot(lam_grid, gamma_approx, "k--", label=r"$2\gamma_{1Dz}^{approx}$")
-            mask = (Lambda_num >= lam_min) & (Lambda_num <= lam_max)
-            ax.plot(Lambda_num[mask], gamma_num[mask], color="gray", linestyle="-", label=r"$2\gamma_{1Dz}^{num}$")
+            _lam_grid = np.linspace(_lam_min, _lam_max, 300)
+            _gamma_approx = 2.0 / (1.0 + 2.0 * _lam_grid / np.pi)
+            _ax.plot(_lam_grid, _gamma_approx, "k--", label=r"$2\gamma_{1Dz}^{approx}$")
+            _mask = (Lambda_num >= _lam_min) & (Lambda_num <= _lam_max)
+            _ax.plot(Lambda_num[_mask], gamma_num[_mask], color="gray", linestyle="-", label=r"$2\gamma_{1Dz}^{num}$")
 
-        ax.set_xlabel("Λ")
+        _ax.set_xlabel("Λ")
 
     # ========================
     # vs u (СОРТИРОВКА ПО ВОЗРАСТАНИЮ LAMBDA)
     # ========================
     else:
-        grouped_by_lambda = defaultdict(list)
-        for item in increment_param_data:
-            grouped_by_lambda[item["Lambda"]].append(item)
+        _grouped_by_lambda = _defaultdict(list)
+        for _item in increment_param_data:
+            _grouped_by_lambda[_item["Lambda"]].append(_item)
 
         # СОРТИРОВКА по возрастанию Lambda (ключ сортировки)
-        for i, (lam_val, items) in enumerate(sorted(grouped_by_lambda.items(), key=lambda x: x[0])):
-            items_sorted = sorted(items, key=lambda x: x["u"])
-            u_vals = np.array([it["u"] for it in items_sorted])
-            gamma_vals = np.array([it["gamma"] for it in items_sorted])
-            color = colors[i % len(colors)]
+        for _i, (_lam_val, _items) in enumerate(sorted(_grouped_by_lambda.items(), key=lambda x: x[0])):
+            _items_sorted = sorted(_items, key=lambda x: x["u"])
+            _u_vals = np.array([it["u"] for it in _items_sorted])
+            _gamma_vals = np.array([it["gamma"] for it in _items_sorted])
+            _color = _colors[_i % len(_colors)]
 
-            ax.plot(
-                u_vals,
-                get_norm_factor(gamma_vals, u_vals, lam_val),
-                color=color,
+            _ax.plot(
+                _u_vals,
+                get_norm_factor(_gamma_vals, _u_vals, _lam_val),
+                color=_color,
                 linestyle="-",
-                label=f"Λ={lam_val}",
+                label=f"Λ={_lam_val}",
             )
 
-        ax.set_xlabel("u")
+        _ax.set_xlabel("u")
 
     # ========================
     # оформление
     # ========================
     if normalized_selector.value:
         if normalization_type_selector.value == "1Dz":
-            ax.set_ylabel(r"$\gamma / \gamma_{1Dz}^{num}$")
+            _ax.set_ylabel(r"$\gamma / \gamma_{1Dz}^{num}$")
         elif normalization_type_selector.value == "1Dx":
-            ax.set_ylabel(r"$\gamma / \gamma_{1Dx}^{num}$")
+            _ax.set_ylabel(r"$\gamma / \gamma_{1Dx}^{num}$")
         elif normalization_type_selector.value == "1Dz*1Dx":
-            ax.set_ylabel(r"$\gamma / (\gamma_{1Dz}^{num} \gamma_{1Dx}^{num})$")
+            _ax.set_ylabel(r"$\gamma / (\gamma_{1Dz}^{num} \gamma_{1Dx}^{num})$")
     else:
-        ax.set_ylabel(r"$2\gamma$")
+        _ax.set_ylabel(r"$2\gamma$")
 
-    ax.grid()
+    _ax.grid()
 
     if legend_position_selector.value == "inside":
-        ax.legend()
+        _ax.legend()
     elif legend_position_selector.value == "right":
-        ax.legend(loc="center left", bbox_to_anchor=(1, 0.5))
+        _ax.legend(loc="center left", bbox_to_anchor=(1, 0.5))
     else:
-        ax.legend(loc="upper left", bbox_to_anchor=(1.05, 1))
-
-    fig
+        _ax.legend(loc="upper left", bbox_to_anchor=(1.05, 1))
+    _fig
     return
 
 
