@@ -132,7 +132,7 @@ def _(mo):
     max_len_selector = mo.ui.slider(start=4, stop=100, value=10)
 
     tmin_selector = mo.ui.number(value=0.0, step=0.1, label="t_min")
-    tmax_selector = mo.ui.number(value=5.0, label="t_max")
+    tmax_selector = mo.ui.number(value=15.0, label="t_max")
 
     legend_position_selector = mo.ui.radio(
         options=["inside", "right", "outside"],
@@ -153,12 +153,12 @@ def _(mo):
 @app.cell
 def _(mo):
     t_amp_min_selector = mo.ui.number(value=0.0, step=0.1, label="t_amp_min")
-    t_amp_max_selector = mo.ui.number(value=5.0, label="t_amp_max")
+    t_amp_max_selector = mo.ui.number(value=60.0, label="t_amp_max")
     t_amp_min_selector, t_amp_max_selector
     return t_amp_max_selector, t_amp_min_selector
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(np):
     from scipy.signal import find_peaks
 
@@ -220,7 +220,7 @@ def _(np):
     return (find_increment_internal,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(
     df_filtered_selected,
     fixed_L_selector,
@@ -262,7 +262,7 @@ def _(
     return (grouped_output,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(grouped_output, np):
     slope_output = []
 
@@ -273,6 +273,21 @@ def _(grouped_output, np):
         mask_local = y_local > 0
         t_local = t_local[mask_local]
         y_local = y_local[mask_local]
+
+        if len(t_local) < 3:
+            continue
+
+        # Remove duplicate time points (keep first occurrence)
+        unique_t, unique_indices = np.unique(t_local, return_index=True)
+        y_local = y_local[unique_indices]
+        t_local = unique_t
+
+        # Optional: sort by time (np.unique already sorts)
+        # If you need to maintain original order and remove duplicates only:
+        # _, unique_indices = np.unique(t_local, return_index=True)
+        # unique_indices = np.sort(unique_indices)  # preserve order
+        # t_local = t_local[unique_indices]
+        # y_local = y_local[unique_indices]
 
         if len(t_local) < 3:
             continue
@@ -289,7 +304,7 @@ def _(grouped_output, np):
     return slope_output, slope_vals
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(
     find_increment_internal,
     fixed_u_selector,
@@ -324,7 +339,7 @@ def _(
     return (fit_output,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(
     char_label,
     grouped_output,
@@ -374,7 +389,7 @@ def _(
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(
     char_label,
     fit_output,
@@ -450,7 +465,7 @@ def _(
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(
     char_label,
     fit_output,
@@ -514,35 +529,166 @@ def _(
     return
 
 
-@app.cell
-def _(np):
-    data = np.array([
-        [0.01, 1.9928050716967245],[0.1, 1.8161333200993417],[0.2, 1.6849609053565109],
-        [0.3, 1.5799951885209726],[0.4, 1.4911154516411378],[0.5, 1.413789849033274],
-        [0.6, 1.345388182960182],[0.7, 1.2841702745086352],[0.8, 1.22889470081888],
-        [0.9, 1.178629086948092],[1.0, 1.132649643809105],[1.1, 1.090379883854399],
-        [1.2, 1.0513513768786171],[1.3, 1.0151789562253077],[1.4, 0.9815368066318896],
-        [1.5, 0.9501532130414946],[1.6, 0.9207952676389994],[1.7, 0.8932490300534381],
-        [1.8, 0.8673683523181209],[1.9, 0.8429883944856915],[2.0, 0.8199766323645665],
-        [2.5, 0.7218010496439926],[3.0, 0.6448274730878004],[3.5, 0.5826444868025907],
-        [4.0, 0.5313354941995087],[4.5, 0.48820702277786343],[5.0, 0.4514127004981953],
-        [6.0, 0.3918923008150795],[7.0, 0.34573326331168525],[8.0, 0.30882845685744115],
-        [9.0, 0.2786077964395182],[10.0, 0.25559712030931114],[11.0, 0.23435768308055907],
-        [12.0, 0.21610031290388074],[13.0, 0.20022589811693325],[14.0, 0.18628582937996452],
-        [15.0, 0.1739391439678295],[16.0, 0.16292101500721307],[17.0, 0.1530227712749439],
-        [18.0, 0.14413842133731422],[19.0, 0.13601207241602384],[20.0, 0.13023232911625723],
-    ])
+@app.cell(hide_code=True)
+def _(df_filtered, np, t_amp_max_selector, t_amp_min_selector, ts_selector):
+    wsat_param_data = []
 
-    Lambda_num = data[:, 0]
-    gamma_num = data[:, 1]
+    if ts_selector.value is not None:
+        _df_tmp = df_filtered[df_filtered["ts_name"] == ts_selector.value]
 
-    def gamma_interp(L):
-        return np.interp(L, Lambda_num, gamma_num)
+        _grouped = _df_tmp.groupby(["u", "Lambda"])
 
-    return Lambda_num, gamma_interp, gamma_num
+        for (_u_val, _L_val), _df_group_2 in _grouped:
+            _t_arr = _df_group_2["t"].values
+            _y_arr = _df_group_2["value"].values
+
+            _mask_amp = (
+                (_t_arr >= t_amp_min_selector.value) &
+                (_t_arr <= t_amp_max_selector.value)
+            )
+            _t_amp = _t_arr[_mask_amp]
+            _y_amp = _y_arr[_mask_amp]
+
+            if len(_t_amp) == 0:
+                continue
+
+            _wsat_val = float(np.nanmax(_y_amp))
+            wsat_param_data.append(
+                {
+                    "u": _u_val,
+                    "Lambda": _L_val,
+                    "Wsat": _wsat_val,
+                }
+            )
+    return (wsat_param_data,)
 
 
-@app.cell
+@app.cell(hide_code=True)
+def _(legend_position_selector, np, plt, wsat_param_data):
+    from collections import defaultdict as _defaultdict
+
+    _fig, _ax = plt.subplots()
+    _grouped_by_lambda = _defaultdict(list)
+
+    for _item in wsat_param_data:
+        _grouped_by_lambda[_item["Lambda"]].append(_item)
+
+    for _i, (_lam_val, _items) in enumerate(sorted(_grouped_by_lambda.items(), key=lambda x: x[0])):
+        _items_sorted = sorted(_items, key=lambda x: x["u"])
+        _u_vals = np.array([it["u"] for it in _items_sorted], dtype=float)
+        _wsat_vals = np.array([np.log(it["Wsat"]) for it in _items_sorted], dtype=float)
+        _ax.plot(_u_vals, _wsat_vals, marker="o", label=f"Λ={_lam_val}")
+
+    u_min = np.min([item["u"] for item in wsat_param_data])
+    u_max = np.max([item["u"] for item in wsat_param_data])
+    _u_ref = np.linspace(u_min, u_max, 200)
+    _ref_level = np.log(np.exp(2 * np.pi / _u_ref ** 2))
+
+    _ax.plot(_u_ref,_ref_level, color="black", linestyle="--", linewidth=2, label=r"$2\pi/u^2$")
+
+    _ax.set_xlabel("u")
+    _ax.set_ylabel(r"$\log(W_{sat})$")
+    _ax.grid()
+
+    if legend_position_selector.value == "inside":
+        _ax.legend()
+    elif legend_position_selector.value == "right":
+        _ax.legend(loc="center left", bbox_to_anchor=(1, 0.5))
+    else:
+        _ax.legend(loc="upper left", bbox_to_anchor=(1.05, 1))
+    _fig
+    return u_max, u_min
+
+
+@app.cell(hide_code=True)
+def _(legend_position_selector, np, plt, u_max, u_min, wsat_param_data):
+    from collections import defaultdict as _defaultdict
+
+    _fig2, _ax2 = plt.subplots()
+    _grouped_by_lambda = _defaultdict(list)
+
+    for _item in wsat_param_data:
+        _grouped_by_lambda[_item["Lambda"]].append(_item)
+
+    for _i, (_lam_val, _items) in enumerate(sorted(_grouped_by_lambda.items(), key=lambda x: x[0])):
+        _items_sorted = sorted(_items, key=lambda x: x["u"])
+        _u_vals = np.array([it["u"] for it in _items_sorted], dtype=float)
+        _wsat_vals = np.array([np.log(it["Wsat"]) for it in _items_sorted], dtype=float)
+    
+        # Новая координата X: 2π/u²
+        _x_vals = 2 * np.pi / (_u_vals ** 2)
+    
+        _ax2.plot(_x_vals, _wsat_vals, marker="o", label=f"Λ={_lam_val}")
+
+    # Эталонная прямая линия (y = x, так как log(exp(2π/u²)) = 2π/u²)
+    _x_ref = np.linspace(
+        2 * np.pi / (u_max ** 2),  # минимальное значение при максимальном u
+        2 * np.pi / (u_min ** 2),  # максимальное значение при минимальном u
+        200
+    )
+    _y_ref = _x_ref  # так как log(exp(2π/u²)) = 2π/u²
+
+    _ax2.plot(_x_ref, _y_ref, color="black", linestyle="--", linewidth=2, label=r"$exp(2\pi Z)$")
+
+    _ax2.set_xlabel(r"$2\pi Z$")
+    _ax2.set_ylabel(r"$\log(W_{sat})$")
+    _ax2.grid()
+
+    if legend_position_selector.value == "inside":
+        _ax2.legend()
+    elif legend_position_selector.value == "right":
+        _ax2.legend(loc="center left", bbox_to_anchor=(1, 0.5))
+    else:
+        _ax2.legend(loc="upper left", bbox_to_anchor=(1.05, 1))
+
+    _fig2
+    return
+
+
+@app.cell(hide_code=True)
+def _(legend_position_selector, np, plt, wsat_param_data):
+    from collections import defaultdict as _defaultdict
+
+    _fig, _ax = plt.subplots()
+    _grouped_by_u = _defaultdict(list)
+
+    for _item in wsat_param_data:
+        _grouped_by_u[_item["u"]].append(_item)
+
+    for _i, (_u_val, _items) in enumerate(sorted(_grouped_by_u.items(), key=lambda x: x[0])):
+        _items_sorted = sorted(_items, key=lambda x: x["Lambda"])
+        _lam_vals = np.array([it["Lambda"] for it in _items_sorted], dtype=float)
+        _wsat_vals = np.array([np.log(it["Wsat"]) for it in _items_sorted], dtype=float)
+    
+        # Основная линия с точками
+        _line, = _ax.plot(_lam_vals, _wsat_vals, marker="o", label=f"u={_u_val}")
+    
+        # Горизонтальная пунктирная линия на уровне 2π/u²
+        _level = np.exp(2 * np.pi / (_u_val ** 2))
+        _ax.axhline(
+            y=np.log(_level),  # логарифм, так как по оси Y логарифм
+            linestyle="--",
+            color=_line.get_color(),
+            linewidth=2,
+            alpha=0.7
+        )
+
+    _ax.set_xlabel("Λ")
+    _ax.set_ylabel(r"$\log(W_{sat})$")
+    _ax.grid()
+
+    if legend_position_selector.value == "inside":
+        _ax.legend()
+    elif legend_position_selector.value == "right":
+        _ax.legend(loc="center left", bbox_to_anchor=(1, 0.5))
+    else:
+        _ax.legend(loc="upper left", bbox_to_anchor=(1.05, 1))
+
+    _fig
+    return
+
+
+@app.cell(hide_code=True)
 def _(mo):
     param_mode_selector = mo.ui.radio(
         options=["vs_u", "vs_Lambda"],
@@ -568,7 +714,7 @@ def _(mo):
     )
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(
     df_filtered,
     find_increment_internal,
@@ -613,102 +759,35 @@ def _(
     return (increment_param_data,)
 
 
-@app.cell
-def _(df_filtered, np, t_amp_max_selector, t_amp_min_selector, ts_selector):
-    wsat_param_data = []
+@app.cell(hide_code=True)
+def _(np):
+    data = np.array([
+        [0.01, 1.9928050716967245],[0.1, 1.8161333200993417],[0.2, 1.6849609053565109],
+        [0.3, 1.5799951885209726],[0.4, 1.4911154516411378],[0.5, 1.413789849033274],
+        [0.6, 1.345388182960182],[0.7, 1.2841702745086352],[0.8, 1.22889470081888],
+        [0.9, 1.178629086948092],[1.0, 1.132649643809105],[1.1, 1.090379883854399],
+        [1.2, 1.0513513768786171],[1.3, 1.0151789562253077],[1.4, 0.9815368066318896],
+        [1.5, 0.9501532130414946],[1.6, 0.9207952676389994],[1.7, 0.8932490300534381],
+        [1.8, 0.8673683523181209],[1.9, 0.8429883944856915],[2.0, 0.8199766323645665],
+        [2.5, 0.7218010496439926],[3.0, 0.6448274730878004],[3.5, 0.5826444868025907],
+        [4.0, 0.5313354941995087],[4.5, 0.48820702277786343],[5.0, 0.4514127004981953],
+        [6.0, 0.3918923008150795],[7.0, 0.34573326331168525],[8.0, 0.30882845685744115],
+        [9.0, 0.2786077964395182],[10.0, 0.25559712030931114],[11.0, 0.23435768308055907],
+        [12.0, 0.21610031290388074],[13.0, 0.20022589811693325],[14.0, 0.18628582937996452],
+        [15.0, 0.1739391439678295],[16.0, 0.16292101500721307],[17.0, 0.1530227712749439],
+        [18.0, 0.14413842133731422],[19.0, 0.13601207241602384],[20.0, 0.13023232911625723],
+    ])
 
-    if ts_selector.value is not None:
-        _df_tmp = df_filtered[df_filtered["ts_name"] == ts_selector.value]
+    Lambda_num = data[:, 0]
+    gamma_num = data[:, 1]
 
-        _grouped = _df_tmp.groupby(["u", "Lambda"])
+    def gamma_interp(L):
+        return np.interp(L, Lambda_num, gamma_num)
 
-        for (_u_val, _L_val), _df_group_2 in _grouped:
-            _t_arr = _df_group_2["t"].values
-            _y_arr = _df_group_2["value"].values
-
-            _mask_amp = (
-                (_t_arr >= t_amp_min_selector.value) &
-                (_t_arr <= t_amp_max_selector.value)
-            )
-            _t_amp = _t_arr[_mask_amp]
-            _y_amp = _y_arr[_mask_amp]
-
-            if len(_t_amp) == 0:
-                continue
-
-            _wsat_val = float(np.nanmax(_y_amp))
-            wsat_param_data.append(
-                {
-                    "u": _u_val,
-                    "Lambda": _L_val,
-                    "Wsat": _wsat_val,
-                }
-            )
-    return (wsat_param_data,)
+    return Lambda_num, gamma_interp, gamma_num
 
 
-@app.cell
-def _(legend_position_selector, np, plt, wsat_param_data):
-    from collections import defaultdict as _defaultdict
-
-    _fig, _ax = plt.subplots()
-    _grouped_by_lambda = _defaultdict(list)
-
-    for _item in wsat_param_data:
-        _grouped_by_lambda[_item["Lambda"]].append(_item)
-
-    for _i, (_lam_val, _items) in enumerate(sorted(_grouped_by_lambda.items(), key=lambda x: x[0])):
-        _items_sorted = sorted(_items, key=lambda x: x["u"])
-        _u_vals = np.array([it["u"] for it in _items_sorted], dtype=float)
-        _wsat_vals = np.array([np.log(it["Wsat"]) for it in _items_sorted], dtype=float)
-        _ax.plot(_u_vals, _wsat_vals, marker="o", label=f"Λ={_lam_val}")
-
-    _ax.set_xlabel("u")
-    _ax.set_ylabel(r"$\log(W_{sat})$")
-    _ax.grid()
-
-    if legend_position_selector.value == "inside":
-        _ax.legend()
-    elif legend_position_selector.value == "right":
-        _ax.legend(loc="center left", bbox_to_anchor=(1, 0.5))
-    else:
-        _ax.legend(loc="upper left", bbox_to_anchor=(1.05, 1))
-    _fig
-    return
-
-
-@app.cell
-def _(legend_position_selector, np, plt, wsat_param_data):
-    from collections import defaultdict as _defaultdict
-
-    _fig, _ax = plt.subplots()
-    _grouped_by_u = _defaultdict(list)
-
-    for _item in wsat_param_data:
-        _grouped_by_u[_item["u"]].append(_item)
-
-    for _i, (_u_val, _items) in enumerate(sorted(_grouped_by_u.items(), key=lambda x: x[0])):
-        _items_sorted = sorted(_items, key=lambda x: x["Lambda"])
-        _lam_vals = np.array([it["Lambda"] for it in _items_sorted], dtype=float)
-        _wsat_vals = np.array([np.log(it["Wsat"]) for it in _items_sorted], dtype=float)
-        _ax.plot(_lam_vals, _wsat_vals, marker="o", label=f"u={_u_val}")
-
-    _ax.set_xlabel("Λ")
-    _ax.set_ylabel(r"$\log(W_{sat})$")
-    _ax.grid()
-
-    if legend_position_selector.value == "inside":
-        _ax.legend()
-    elif legend_position_selector.value == "right":
-        _ax.legend(loc="center left", bbox_to_anchor=(1, 0.5))
-    else:
-        _ax.legend(loc="upper left", bbox_to_anchor=(1.05, 1))
-
-    _fig
-    return
-
-
-@app.cell
+@app.cell(hide_code=True)
 def _(
     Lambda_num,
     gamma_interp,
@@ -842,6 +921,11 @@ def _(
     else:
         _ax.legend(loc="upper left", bbox_to_anchor=(1.05, 1))
     _fig
+    return
+
+
+@app.cell
+def _():
     return
 
 
