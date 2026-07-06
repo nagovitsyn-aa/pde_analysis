@@ -45,6 +45,36 @@ def _(df_data, visible_L_selector, visible_u_selector):
 
 
 @app.cell
+def _(df_filtered):
+    df_tmax = (
+        df_filtered
+        .groupby("run_id", as_index=False)
+        .agg(
+            u=("u", "first"),
+            Lambda=("Lambda", "first"),
+            tmax=("t", "max"),
+        )
+    )
+    duplicates = (
+        df_tmax
+        .groupby(["u", "Lambda"])
+        .filter(lambda x: len(x) > 1)
+        .sort_values(["u", "Lambda", "tmax"])
+    )
+    duplicates
+    return
+
+
+@app.cell
+def _(df_filtered):
+    excluded_run_ids = [29, 17, 116, 20, 21,7,45,46,47, 48, 49, 50, 51]
+    df_filtered_selected = df_filtered[
+        ~df_filtered["run_id"].isin(excluded_run_ids)
+    ]
+    return (df_filtered_selected,)
+
+
+@app.cell
 def _(df_data, mo):
     ts_options_local = sorted(df_data["ts_name"].unique())
 
@@ -184,7 +214,7 @@ def _(np):
 
 @app.cell
 def _(
-    df_filtered,
+    df_filtered_selected,
     fixed_L_selector,
     fixed_u_selector,
     mode_selector,
@@ -193,7 +223,7 @@ def _(
     grouped_output = []
 
     if ts_selector.value is not None:
-        df_tmp_2 = df_filtered[df_filtered["ts_name"] == ts_selector.value]
+        df_tmp_2 = df_filtered_selected[df_filtered_selected["ts_name"] == ts_selector.value]
 
         if mode_selector.value == "fixed_u":
             df_tmp_2 = df_tmp_2[df_tmp_2["u"] == fixed_u_selector.value]
@@ -287,12 +317,6 @@ def _(
 
 
 @app.cell
-def _(grouped_output):
-    grouped_output[0]["t_array"]
-    return
-
-
-@app.cell
 def _(
     char_label,
     grouped_output,
@@ -361,21 +385,21 @@ def _(
         t_vals_slope = entry_plot2["t_array"]
         _slope_vals = entry_plot2["slope_array"]
         label = entry_plot2["label_local"]
-    
+
         # Основная линия
         line_main_slope, = plt.plot(t_vals_slope, _slope_vals, label=fr"${char_label}={label}$", alpha=0.6)
-    
+
         color_slope = line_main_slope.get_color()
-    
+
         # Пытаемся получить fit данные из fit_output
         if label in fit_dict:
             fit_data = fit_dict[label]
             if fit_data is not None and len(fit_data) >= 3:
                 slope_val_max, t_start_slope, t_end_slope = fit_data
-            
+
                 # Маска для выделенного участка
                 mask_slope = (t_vals_slope >= t_start_slope) & (t_vals_slope <= t_end_slope)
-            
+
                 # Выделяем участок
                 plt.plot(
                     t_vals_slope[mask_slope],
@@ -383,27 +407,27 @@ def _(
                     linewidth=4,
                     color=color_slope,
                 )
-            
+
         else:
             # Если fit данных нет, находим максимум из массива
             max_slope_idx = np.argmax(_slope_vals)
             max_slope_value = _slope_vals[max_slope_idx]
-        
+
             # Выделяем окрестность максимума
             half_window = 1
             start_idx = max(0, max_slope_idx - half_window)
             end_idx = min(len(t_vals_slope), max_slope_idx + half_window + 1)
-        
+
             mask_slope = np.zeros(len(t_vals_slope), dtype=bool)
             mask_slope[start_idx:end_idx] = True
-        
+
             plt.plot(
                 t_vals_slope[mask_slope],
                 _slope_vals[mask_slope],
                 linewidth=4,
                 color=color_slope,
             )
-        
+
     plt.grid()
     if legend_position_selector.value == "inside":
         plt.legend()
