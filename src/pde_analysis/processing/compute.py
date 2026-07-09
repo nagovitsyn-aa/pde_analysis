@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.signal import find_peaks
 
 
 def find_longest_exponential_stage(t, y, min_len=5, r2_min=0.99):
@@ -97,6 +98,82 @@ def find_interaction_time_full(t, y, window=5, threshold=0.1, tail=3):
 
 
 
+def compute_amplification_by_max(t, y, *, t_max=None):
+    t_arr = np.asarray(t, dtype=float)
+    y_arr = np.asarray(y, dtype=float)
+
+    if t_max is not None:
+        mask = t_arr <= t_max
+        t_arr = t_arr[mask]
+        y_arr = y_arr[mask]
+
+    if len(y_arr) == 0:
+        return np.nan
+
+    return float(np.nanmax(y_arr))
+
+
+def compute_amplification_by_median_after_time(t, y, *, t_start):
+    t_arr = np.asarray(t, dtype=float)
+    y_arr = np.asarray(y, dtype=float)
+
+    mask = t_arr >= t_start
+    if np.count_nonzero(mask) == 0:
+        return np.nan
+
+    return float(np.nanmedian(y_arr[mask]))
+
+
+def find_increment_peak(
+    t,
+    y,
+    min_len=3,
+    max_len=10,
+    t_min=0.0,
+    t_max=None,
+    peak_number=2,
+    half_width=0.5,
+):
+    t_arr = np.asarray(t, dtype=float)
+    y_arr = np.asarray(y, dtype=float)
+
+    mask = (y_arr > 0) & (t_arr >= t_min)
+    if t_max is not None:
+        mask &= t_arr <= t_max
+
+    t_arr = t_arr[mask]
+    y_arr = y_arr[mask]
+
+    if len(t_arr) < min_len:
+        return None
+
+    unique_t, unique_indices = np.unique(t_arr, return_index=True)
+    y_arr = y_arr[unique_indices]
+    t_arr = unique_t
+
+    if len(t_arr) < min_len or len(t_arr) > max_len:
+        return None
+
+    log_y = np.log(y_arr)
+    dlog_y = np.gradient(log_y, t_arr)
+    peaks, _ = find_peaks(dlog_y)
+
+    if len(peaks) > 0:
+        if peak_number <= len(peaks):
+            peak_idx = int(peaks[peak_number - 1])
+        else:
+            peak_idx = int(np.nanargmax(dlog_y))
+    else:
+        peak_idx = int(np.nanargmax(dlog_y))
+
+    slope = float(dlog_y[peak_idx])
+    t_peak = float(t_arr[peak_idx])
+    t_start = max(t_peak - half_width, t_arr[0])
+    t_end = min(t_peak + half_width, t_arr[-1])
+
+    return slope, t_start, t_end
+
+
 def compute_metrics(timeseries_dict, params):
 
     t, Ea = timeseries_dict["E_a"]
@@ -131,9 +208,24 @@ def compute_metrics(timeseries_dict, params):
         t_stage = exp_stage["t_end"] - exp_stage["t_start"]
 
     # --- 4. real amplification ---
-    amplification = np.max(Ea)
+    amplification_max = compute_amplification_by_max(t, Ea, t_max=60.0)
+    amplification_median = compute_amplification_by_median_after_time(t, Ea, t_start=t_full)
 
-    # --- 5. Z ---
+    # --- 5. increment from the notebook-style peak finder ---
+    increment_peak = find_increment_peak(
+        t,
+        Ea,
+        min_len=3,
+        max_len=10,
+        t_min=0.0,
+        t_max=15.0,
+        peak_number=2,
+        half_width=0.5,
+    )
+    growth_rate_peak = None if increment_peak is None else increment_peak[0]
+
+    # --- 6. Z ---
+    amplification = amplification_median if not np.isnan(amplification_median) else amplification_max
     Z = np.log(amplification) / (2 * np.pi)
 
     u = params["Parameters"].get("u", 1)
@@ -147,8 +239,11 @@ def compute_metrics(timeseries_dict, params):
         # инкременты
         "growth_rate_avg": float(gr_avg),
         "growth_rate_stage": None if gr_stage is None else float(gr_stage),
+        "growth_rate_peak": None if growth_rate_peak is None else float(growth_rate_peak),
 
         "amplification": float(amplification),
+        "amplification_max": float(amplification_max),
+        "amplification_median_after_t_full": float(amplification_median),
         "amplification_pred": float(amplification_pred),
 
         "Z": float(Z),
