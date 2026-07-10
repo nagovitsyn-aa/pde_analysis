@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.22.0"
+__generated_with = "0.23.2"
 app = marimo.App()
 
 
@@ -12,20 +12,67 @@ def _():
     from pde_analysis.db_analysis.load_timeseries import load_timeseries_dataframe
     from pde_analysis.db_analysis.preprocess import normalize_parameters
 
-    return (
-        mo,
-        plt,
-        load_timeseries_dataframe,
-        normalize_parameters,
-    )
+    return load_timeseries_dataframe, mo, normalize_parameters, plt
 
 
 @app.cell
 def _(mo):
-    experiment_ui = mo.ui.text(
-        value="one_decay_parameters_scan_with_IC_dx=0p05",
-        label="experiment name",
+    db_path = mo.ui.text(
+        value="data/db/simulations.db",
+        label="db path",
         full_width=True,
+    )
+    db_path
+    return (db_path,)
+
+
+@app.cell
+def _(db_path, mo):
+    def load_table(db_path: str, query: str):
+        import sqlite3
+        import pandas as pd
+
+        conn = sqlite3.connect(db_path)
+        try:
+            return pd.read_sql_query(query, conn)
+        finally:
+            conn.close()
+
+    runs_df = load_table(
+        db_path.value,
+        """
+        SELECT
+            r.run_id,
+            e.name AS experiment_name,
+            r.file_name,
+            r.dimension,
+            r.Lambda,
+            r.u,
+            r.tend,
+            r.x0,
+            r.rangeX,
+            r.rangeY,
+            r.dx,
+            r.dy,
+            r.status,
+            r.note,
+            r.created_at
+        FROM runs r
+        JOIN experiments e ON r.experiment_id = e.experiment_id
+        ORDER BY e.name, r.run_id
+        """,
+    )
+
+    experiment_names = (
+        sorted(runs_df["experiment_name"].dropna().unique().tolist())
+        if not runs_df.empty
+        else []
+    )
+
+    experiment_ui = mo.ui.dropdown(
+        options=experiment_names,
+        value=experiment_names[0] if experiment_names else None,
+        label="experiment",
     )
 
     experiment_ui
@@ -100,7 +147,7 @@ def _(df, mo):
     )
 
     fixed_u_ui, fixed_Lambda_ui, visible_u_ui, visible_Lambda_ui
-    return (fixed_u_ui, fixed_Lambda_ui, visible_u_ui, visible_Lambda_ui)
+    return fixed_Lambda_ui, fixed_u_ui, visible_Lambda_ui, visible_u_ui
 
 
 @app.cell
@@ -116,13 +163,7 @@ def _(mo):
 
 
 @app.cell
-def _(
-    df,
-    ts_ui,
-    mode_ui,
-    fixed_u_ui,
-    fixed_Lambda_ui,
-):
+def _(df, fixed_Lambda_ui, fixed_u_ui, mode_ui, ts_ui):
     if ts_ui.value is None:
         df_filtered = df.iloc[0:0]
     else:
@@ -142,14 +183,7 @@ def _(
 
 
 @app.cell
-def _(
-    df_filtered,
-    mode_ui,
-    visible_u_ui,
-    visible_Lambda_ui,
-    scale_ui,
-    plt,
-):
+def _(df_filtered, mode_ui, plt, scale_ui, visible_Lambda_ui, visible_u_ui):
     import numpy as np
 
     plt.figure()

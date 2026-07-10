@@ -136,10 +136,5 @@ def _(energy_data, field_ui, plt, scale_ui, visibility_ui):
     return
 
 
-@app.cell
-def _():
-    return
-
-
 if __name__ == "__main__":
     app.run()

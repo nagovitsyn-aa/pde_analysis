@@ -16,24 +16,78 @@ def _():
     return load_timeseries_dataframe, mo, normalize_parameters, np, plt
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
-    experiment_ui = mo.ui.text(
-        value="one_decay_parameters_scan_with_IC_dx=0p05",
-        label="experiment name",
+    db_path = mo.ui.text(
+        value="data/db/simulations.db",
+        label="db path",
+        full_width=True,
     )
+    db_path
+    return (db_path,)
+
+
+@app.cell(hide_code=True)
+def _(db_path, mo):
+    def load_table(db_path: str, query: str):
+        import sqlite3
+        import pandas as pd
+
+        conn = sqlite3.connect(db_path)
+        try:
+            return pd.read_sql_query(query, conn)
+        finally:
+            conn.close()
+
+    runs_df = load_table(
+        db_path.value,
+        """
+        SELECT
+            r.run_id,
+            e.name AS experiment_name,
+            r.file_name,
+            r.dimension,
+            r.Lambda,
+            r.u,
+            r.tend,
+            r.x0,
+            r.rangeX,
+            r.rangeY,
+            r.dx,
+            r.dy,
+            r.status,
+            r.note,
+            r.created_at
+        FROM runs r
+        JOIN experiments e ON r.experiment_id = e.experiment_id
+        ORDER BY e.name, r.run_id
+        """,
+    )
+
+    experiment_names = (
+        sorted(runs_df["experiment_name"].dropna().unique().tolist())
+        if not runs_df.empty
+        else []
+    )
+
+    experiment_ui = mo.ui.dropdown(
+        options=experiment_names,
+        value=experiment_names[0] if experiment_names else None,
+        label="experiment",
+    )
+
     experiment_ui
     return (experiment_ui,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(experiment_ui, load_timeseries_dataframe, normalize_parameters):
     df_data = load_timeseries_dataframe(experiment_name=experiment_ui.value)
     df_data = normalize_parameters(df_data, ndigits=5)
     return (df_data,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(df_data, visible_L_selector, visible_u_selector):
     df_filtered = df_data[
         (df_data["u"].isin(visible_u_selector.value)) &
@@ -44,7 +98,7 @@ def _(df_data, visible_L_selector, visible_u_selector):
     return (df_filtered,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(df_filtered):
     df_tmax = (
         df_filtered
@@ -65,7 +119,7 @@ def _(df_filtered):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(df_filtered):
     excluded_run_ids = [29, 17, 116, 20, 21,7,45,46,47, 48, 49, 50, 51]
     df_filtered_selected = df_filtered[
@@ -74,7 +128,7 @@ def _(df_filtered):
     return (df_filtered_selected,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(df_data, mo):
     ts_options_local = sorted(df_data["ts_name"].unique())
 
@@ -124,7 +178,7 @@ def _(df_data, mo):
     )
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     scale_selector = mo.ui.radio(options=["linear", "log"], value="log")
 
@@ -150,7 +204,7 @@ def _(mo):
     )
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     t_amp_min_selector = mo.ui.number(value=0.0, step=0.1, label="t_amp_min")
     t_amp_max_selector = mo.ui.number(value=60.0, label="t_amp_max")
@@ -170,7 +224,7 @@ def _(np):
         tmin_internal,
         tmax_internal,
         peak_number=2,  # New parameter: which peak to select (1=first, 2=second, etc.)
-        half_width=0.5,  # Half-width around the peak for t_start and t_end
+        half_width=0.1,  # Half-width around the peak for t_start and t_end
     ):
         mask_internal = (
             (y_arr_internal > 0) &
