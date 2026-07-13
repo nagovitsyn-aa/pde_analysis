@@ -3,11 +3,10 @@ from pathlib import Path
 from pde_analysis.db.connection import get_connection
 from pde_analysis.db.experiments import get_or_create_experiment
 from pde_analysis.db.runs import create_run
-from pde_analysis.db.metrics import add_metric
 from pde_analysis.db.timeseries import add_timeseries
 
 from pde_analysis.processing.extract import extract_params, extract_metadata, extract_timeseries
-from pde_analysis.processing.compute import compute_metrics
+from pde_analysis.processing.compute import compute_derived_timeseries
 
 import json
 
@@ -21,7 +20,6 @@ def run_exists(conn, file_name):
     return cursor.fetchone()
 
 
-
 def add_run_from_h5(
     experiment_name: str,
     h5_path: str | Path,
@@ -29,15 +27,23 @@ def add_run_from_h5(
 ):
     """
     Главная функция добавления одного расчёта в БД.
+
+    Сохраняет:
+      - параметры расчёта
+      - метаданные
+      - сырые временные ряды (из extract_timeseries)
+      - нормированные временные ряды (из compute_derived_timeseries)
+
+    Метрики НЕ вычисляются при загрузке — для этого есть compute_metrics(),
+    вызываемый отдельно (из ноутбуков, manage.py и т.д.).
     """
     conn = get_connection()
     h5_path = Path(h5_path)
 
-    
     # --- 0. базовая проверка ---
     if not h5_path.exists():
         raise FileNotFoundError(f"HDF5 file not found: {h5_path}")
-    
+
     file_name = h5_path.name
     existing = run_exists(conn, file_name)
 
@@ -49,15 +55,14 @@ def add_run_from_h5(
     params = extract_params(h5_path)
     metadata = extract_metadata(h5_path)
     status = metadata.get("CalculationStatus", "unknown")
-    note = json.dumps(metadata)
+    note = json.dumps(metadata, ensure_ascii=False, default=str)
 
-    timeseries_dict = extract_timeseries(h5_path)
+    raw_ts = extract_timeseries(h5_path)
 
-    # --- 2. вычисление метрик ---
-    metrics_dict = compute_metrics(timeseries_dict, params)
+    # --- 2. нормированные ряды ---
+    derived_ts = compute_derived_timeseries(raw_ts)
 
     # --- 3. запись в БД ---
-    
     try:
         # 3.1 эксперимент
         experiment_id = get_or_create_experiment(conn, experiment_name)
@@ -71,16 +76,16 @@ def add_run_from_h5(
             dimension=dimension,
             h5_path=str(h5_path),
             status=status,
-            note=note
+            note=note,
         )
 
-        # 3.3 временные ряды
-        for name, (t, y) in timeseries_dict.items():
+        # 3.3 сырые временные ряды
+        for name, (t, y) in raw_ts.items():
             add_timeseries(conn, run_id, name, t, y)
 
-        # 3.4 метрики
-        for name, value in metrics_dict.items():
-            add_metric(conn, run_id, name, value, version=1)
+        # 3.4 нормированные временные ряды
+        for name, (t, y) in derived_ts.items():
+            add_timeseries(conn, run_id, name, t, y)
 
         conn.commit()
 

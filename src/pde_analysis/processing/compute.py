@@ -2,9 +2,47 @@ import numpy as np
 from scipy.signal import find_peaks
 
 
+# ==============================================================
+# Часть 1: производные временные ряды (вызывается при загрузке)
+# ==============================================================
+
+def compute_derived_timeseries(raw_ts):
+    """Создаёт нормированные версии временных рядов (если E[0] ≠ 0).
+
+    Принимает словарь raw_ts из extract_timeseries().
+    Возвращает dict {имя_ряда: (t, y)} для добавления в БД.
+
+    Сейчас:
+      - E_a_norm,     E_b_norm      — E(t) / E(0)
+      - max_a_norm,   max_b_norm    — max(t) / max(0)
+      - a_center_norm, b_center_norm — a_center(t) / a_center(0)
+    """
+    derived = {}
+
+    norm_candidates = ["E_a", "E_b", "max_a", "max_b", "a_center", "b_center"]
+
+    for key in norm_candidates:
+        if key not in raw_ts:
+            continue
+        t, y = raw_ts[key]
+        y = np.asarray(y, dtype=float)
+        y0 = y[0]
+        if y0 != 0.0 and np.isfinite(y0):
+            derived[f"{key}_norm"] = (t, y / y0)
+        # если y0 == 0 — просто пропускаем, нормировка не определена
+
+    return derived
+
+
+# ==============================================================
+# Часть 2: скалярные метрики (НЕ вызываются при загрузке,
+#          используются в ноутбуках / ad-hoc анализе)
+# ==============================================================
+
 def find_longest_exponential_stage(t, y, min_len=5, r2_min=0.99):
 
-    log_y = np.log(y)
+    log_y = np.log(np.asarray(y, dtype=float))
+    t = np.asarray(t, dtype=float)
     n = len(t)
 
     px = np.concatenate([[0], np.cumsum(t)])
@@ -57,16 +95,14 @@ def find_longest_exponential_stage(t, y, min_len=5, r2_min=0.99):
     return best
 
 
-
-
-
 def find_interaction_time_full(t, y, window=5, threshold=0.1, tail=3):
     """
     Возвращает конец взаимодействия (включая насыщение)
 
     tail — сколько подряд точек должны быть ниже порога
     """
-
+    y = np.asarray(y, dtype=float)
+    t = np.asarray(t, dtype=float)
     log_y = np.log(y)
 
     slopes = []
@@ -91,11 +127,9 @@ def find_interaction_time_full(t, y, window=5, threshold=0.1, tail=3):
     # ищем устойчивое "умирание роста"
     for i in range(len(mask) - tail):
         if np.all(mask[i:i+tail]):
-            return t_mid[i]
+            return float(t_mid[i])
 
-    return t[-1]  # fallback
-
-
+    return float(t[-1])  # fallback
 
 
 def compute_amplification_by_max(t, y, *, t_max=None):
@@ -175,6 +209,8 @@ def find_increment_peak(
 
 
 def compute_metrics(timeseries_dict, params):
+    """Вычисляет скалярные метрики. НЕ вызывается при загрузке в БД —
+       используется из ноутбуков и ad-hoc анализа."""
 
     t, Ea = timeseries_dict["E_a"]
 
@@ -209,7 +245,9 @@ def compute_metrics(timeseries_dict, params):
 
     # --- 4. real amplification ---
     amplification_max = compute_amplification_by_max(t, Ea, t_max=60.0)
-    amplification_median = compute_amplification_by_median_after_time(t, Ea, t_start=t_full)
+    amplification_median = compute_amplification_by_median_after_time(
+        t, Ea, t_start=t_full
+    )
 
     # --- 5. increment from the notebook-style peak finder ---
     increment_peak = find_increment_peak(
@@ -225,11 +263,15 @@ def compute_metrics(timeseries_dict, params):
     growth_rate_peak = None if increment_peak is None else increment_peak[0]
 
     # --- 6. Z ---
-    amplification = amplification_median if not np.isnan(amplification_median) else amplification_max
+    amplification = (
+        amplification_median
+        if not np.isnan(amplification_median)
+        else amplification_max
+    )
     Z = np.log(amplification) / (2 * np.pi)
 
-    u = params["Parameters"].get("u", 1)
-    ZtoZ0 = np.log(amplification) / (2 * np.pi * u**(-2))
+    u = params.get("Parameters", {}).get("u", 1)
+    ZtoZ0 = np.log(amplification) / (2 * np.pi * u ** (-2))
 
     return {
         # времена
@@ -239,7 +281,9 @@ def compute_metrics(timeseries_dict, params):
         # инкременты
         "growth_rate_avg": float(gr_avg),
         "growth_rate_stage": None if gr_stage is None else float(gr_stage),
-        "growth_rate_peak": None if growth_rate_peak is None else float(growth_rate_peak),
+        "growth_rate_peak": (
+            None if growth_rate_peak is None else float(growth_rate_peak)
+        ),
 
         "amplification": float(amplification),
         "amplification_max": float(amplification_max),
