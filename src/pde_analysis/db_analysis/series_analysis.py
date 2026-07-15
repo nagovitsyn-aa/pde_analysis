@@ -68,8 +68,8 @@ def filter_series_dataframe(
     if selected_u is not None:
         filtered = filtered[filtered["u"].isin(list(selected_u))]
 
-    if selected_lambda is not None:
-        filtered = filtered[filtered["Lambda"].isin(list(selected_lambda))]
+    if "lambda_" in filtered.columns:
+        filtered = filtered[filtered["lambda_"].isin(list(selected_lambda))]
 
     if selected_ts_name is not None:
         filtered = filtered[filtered["ts_name"].isin(list(selected_ts_name))]
@@ -119,8 +119,8 @@ def prepare_series_dataframe(
     if "u" in prepared.columns:
         prepared["u"] = prepared["u"].astype(float)
 
-    if "Lambda" in prepared.columns:
-        prepared["Lambda"] = prepared["Lambda"].astype(float)
+    if "lambda_" in prepared.columns:
+        prepared["lambda_"] = prepared["lambda_"].astype(float)
 
     return prepared
 
@@ -136,13 +136,13 @@ def prepare_plot_data(
 
     plot_data = []
     group_column = _grouping_column(df)
-    for _, row in df.groupby([group_column, "u", "Lambda"], dropna=False):
+    for _, row in df.groupby([group_column, "u", "lambda_"], dropna=False):
         label = row[group_column].iloc[0]
         plot_data.append(
             {
                 "experiment_name": label,
                 "u": row["u"].iloc[0],
-                "Lambda": row["Lambda"].iloc[0],
+                "lambda_": row["lambda_"].iloc[0],
                 "t": row["t"].to_numpy(dtype=float),
                 "value": row["value"].to_numpy(dtype=float),
                 "mode": mode,
@@ -166,7 +166,7 @@ def compute_wsat_metrics(
         filtered = filtered[filtered["ts_name"] == ts_name]
 
     results = []
-    for (u_value, lambda_value), group in filtered.groupby(["u", "Lambda"], dropna=False):
+    for (u_value, lambda_value), group in filtered.groupby(["u", "lambda_"], dropna=False):
         t = group["t"].to_numpy(dtype=float)
         y = group["value"].to_numpy(dtype=float)
 
@@ -198,7 +198,7 @@ def compute_wsat_metrics(
         results.append(
             {
                 "u": float(u_value),
-                "Lambda": float(lambda_value),
+                "lambda_": float(lambda_value),
                 "Wsat": float(amplification),
             }
         )
@@ -223,7 +223,7 @@ def compute_increment_metrics(
         filtered = filtered[filtered["ts_name"] == ts_name]
 
     results = []
-    for (u_value, lambda_value), group in filtered.groupby(["u", "Lambda"], dropna=False):
+    for (u_value, lambda_value), group in filtered.groupby(["u", "lambda_"], dropna=False):
         t = group["t"].to_numpy(dtype=float)
         y = group["value"].to_numpy(dtype=float)
 
@@ -244,7 +244,7 @@ def compute_increment_metrics(
         results.append(
             {
                 "u": float(u_value),
-                "Lambda": float(lambda_value),
+                "lambda_": float(lambda_value),
                 "gamma": float(slope),
             }
         )

@@ -1,6 +1,8 @@
 CREATE TABLE IF NOT EXISTS experiments (
     experiment_id INTEGER PRIMARY KEY,
-    name TEXT NOT NULL UNIQUE
+    name TEXT NOT NULL UNIQUE,
+    description TEXT,
+    decay_type TEXT DEFAULT 'single'
 );
 
 CREATE TABLE IF NOT EXISTS runs (
@@ -12,12 +14,12 @@ CREATE TABLE IF NOT EXISTS runs (
     dimension TEXT NOT NULL,
     params_json TEXT NOT NULL,
 
-    Lambda REAL,
+    lambda_ REAL,
     u REAL,
     tend REAL,
     x0 REAL,
-    rangeX REAL,
-    rangeY REAL,
+    range_x REAL,
+    range_y REAL,
     dx REAL,
     dy REAL,
 

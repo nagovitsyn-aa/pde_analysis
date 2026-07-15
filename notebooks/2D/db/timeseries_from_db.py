@@ -46,12 +46,12 @@ def _(db_path, mo):
             e.name AS experiment_name,
             r.file_name,
             r.dimension,
-            r.Lambda,
+            r.lambda_,
             r.u,
             r.tend,
             r.x0,
-            r.rangeX,
-            r.rangeY,
+            r.range_x,
+            r.range_y,
             r.dx,
             r.dy,
             r.status,
@@ -120,7 +120,7 @@ def _(mo):
 @app.cell
 def _(df, mo):
     u_values = sorted(df["u"].dropna().unique())
-    Lambda_values = sorted(df["Lambda"].dropna().unique())
+    lambda_values = sorted(df["lambda_"].dropna().unique())
 
     fixed_u_ui = mo.ui.dropdown(
         options=u_values,
@@ -128,10 +128,10 @@ def _(df, mo):
         label="fixed u",
     )
 
-    fixed_Lambda_ui = mo.ui.dropdown(
-        options=Lambda_values,
-        value=Lambda_values[0] if Lambda_values else None,
-        label="fixed Lambda",
+    fixed_lambda_ui = mo.ui.dropdown(
+        options=lambda_values,
+        value=lambda_values[0] if lambda_values else None,
+        label="fixed lambda",
     )
 
     visible_u_ui = mo.ui.multiselect(
@@ -140,14 +140,14 @@ def _(df, mo):
         label="visible u",
     )
 
-    visible_Lambda_ui = mo.ui.multiselect(
-        options=Lambda_values,
-        value=Lambda_values,
-        label="visible Lambda",
+    visible_lambda_ui = mo.ui.multiselect(
+        options=lambda_values,
+        value=lambda_values,
+        label="visible lambda",
     )
 
-    fixed_u_ui, fixed_Lambda_ui, visible_u_ui, visible_Lambda_ui
-    return fixed_Lambda_ui, fixed_u_ui, visible_Lambda_ui, visible_u_ui
+    fixed_u_ui, fixed_lambda_ui, visible_u_ui, visible_lambda_ui
+    return fixed_lambda_ui, fixed_u_ui, visible_lambda_ui, visible_u_ui
 
 
 @app.cell
@@ -163,7 +163,7 @@ def _(mo):
 
 
 @app.cell
-def _(df, fixed_Lambda_ui, fixed_u_ui, mode_ui, ts_ui):
+def _(df, fixed_lambda_ui, fixed_u_ui, mode_ui, ts_ui):
     if ts_ui.value is None:
         df_filtered = df.iloc[0:0]
     else:
@@ -175,7 +175,7 @@ def _(df, fixed_Lambda_ui, fixed_u_ui, mode_ui, ts_ui):
             ]
         else:
             df_filtered = df_filtered[
-                df_filtered["Lambda"] == fixed_Lambda_ui.value
+                df_filtered["lambda_"] == fixed_lambda_ui.value
             ]
 
     df_filtered
@@ -183,7 +183,7 @@ def _(df, fixed_Lambda_ui, fixed_u_ui, mode_ui, ts_ui):
 
 
 @app.cell
-def _(df_filtered, mode_ui, plt, scale_ui, visible_Lambda_ui, visible_u_ui):
+def _(df_filtered, mode_ui, plt, scale_ui, visible_lambda_ui, visible_u_ui):
     import numpy as np
 
     plt.figure()
@@ -197,10 +197,10 @@ def _(df_filtered, mode_ui, plt, scale_ui, visible_Lambda_ui, visible_u_ui):
     ]
 
     if mode_ui.value == "fixed_u":
-        grouped = df_filtered.groupby("Lambda")
+        grouped = df_filtered.groupby("lambda_")
 
-        for i, (Lambda, subdf) in enumerate(grouped):
-            if Lambda not in visible_Lambda_ui.value:
+        for i, (lambda_, subdf) in enumerate(grouped):
+            if lambda_ not in visible_lambda_ui.value:
                 continue
 
             subdf = subdf.sort_values("t")
@@ -210,7 +210,7 @@ def _(df_filtered, mode_ui, plt, scale_ui, visible_Lambda_ui, visible_u_ui):
             plt.plot(
                 subdf["t"],
                 subdf["value"],
-                label=f"Λ={Lambda}",
+                label=f"\u039b={lambda_}",
                 linestyle=linestyle,
                 linewidth=2,
                 alpha=0.8,

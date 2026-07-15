@@ -7,7 +7,7 @@ def load_timeseries_dataframe(experiment_name: str) -> pd.DataFrame:
     Возвращает DataFrame в long-формате:
 
     columns:
-        run_id, u, Lambda, ts_name, t, value
+        run_id, u, lambda_, ts_name, t, value
     """
 
     conn = get_connection()
@@ -16,7 +16,7 @@ def load_timeseries_dataframe(experiment_name: str) -> pd.DataFrame:
     SELECT
         r.run_id,
         r.u,
-        r.Lambda,
+        r.lambda_,
         r.file_name,
         ts.name AS ts_name,
         ts.t_values,
@@ -47,7 +47,7 @@ def load_timeseries_dataframe(experiment_name: str) -> pd.DataFrame:
                 {
                     "run_id": row["run_id"],
                     "u": row["u"],
-                    "Lambda": row["Lambda"],
+                    "lambda_": row["lambda_"],
                     "file_name": row["file_name"],
                     "ts_name": row["ts_name"],
                     "t": t,

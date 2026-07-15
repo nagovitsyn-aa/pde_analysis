@@ -54,7 +54,7 @@ def _(experiment_ui, load_metrics_dataframe, normalize_parameters):
 def _(df, mo):
     metric_options = [
         c for c in df.columns
-        if c not in ["run_id", "u", "Lambda"]
+        if c not in ["run_id", "u", "lambda_"]
     ]
 
     metric_ui = mo.ui.dropdown(
@@ -93,13 +93,13 @@ def _(mo):
 
 @app.cell
 def _(df, mo):
-    lambdas = sorted(df["Lambda"].dropna().unique())
+    lambda_vals = sorted(df["lambda_"].dropna().unique())
     us = sorted(df["u"].dropna().unique())
 
     lambda_ui = mo.ui.multiselect(
-        options=lambdas,
-        value=lambdas,
-        label="Lambda curves",
+        options=lambda_vals,
+        value=lambda_vals,
+        label="lambda curves",
     )
 
     u_ui = mo.ui.multiselect(
@@ -115,7 +115,7 @@ def _(df, mo):
 @app.cell
 def _(df, lambda_ui, u_ui):
     df_filtered = df[
-        (df["Lambda"].isin(lambda_ui.value)) &
+        (df["lambda_"].isin(lambda_ui.value)) &
         (df["u"].isin(u_ui.value))
     ]
 
@@ -139,14 +139,14 @@ def _(
         plot_metric_vs_u(
             df_filtered,
             metric_ui.value,
-            lambdas=None,
+            lambda_vals=None,
             ax=ax,
         )
     else:
         plot_metric_vs_lambda(
             df_filtered,
             metric_ui.value,
-            us=None,
+            u_vals=None,
             ax=ax,
         )
 

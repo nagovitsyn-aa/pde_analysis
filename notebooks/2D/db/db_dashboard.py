@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.23.2"
+__generated_with = "0.23.13"
 app = marimo.App()
 
 
@@ -50,8 +50,8 @@ def build_experiments_summary(runs_df):
                 "experiment_name": experiment_name,
                 "dimension": dimension,
                 "n_runs": len(g),
-                "Lambda_min": g["Lambda"].min(),
-                "Lambda_max": g["Lambda"].max(),
+                "lambda_min": g["lambda_"].min(),
+                "lambda_max": g["lambda_"].max(),
                 "u_min": g["u"].min(),
                 "u_max": g["u"].max(),
                 "x0_min": g["x0"].min(),
@@ -90,12 +90,12 @@ def _(db_path):
             e.name AS experiment_name,
             r.file_name,
             r.dimension,
-            r.Lambda,
+            r.lambda_,
             r.u,
             r.tend,
             r.x0,
-            r.rangeX,
-            r.rangeY,
+            r.range_x,
+            r.range_y,
             r.dx,
             r.dy,
             r.status,
@@ -282,8 +282,8 @@ def _(selected_metrics, selected_runs):
 @app.cell
 def _(plt, selected_runs):
     plt.figure() 
-    plt.scatter(selected_runs["Lambda"], selected_runs["u"]) 
-    plt.xlabel("Lambda") 
+    plt.scatter(selected_runs["lambda_"], selected_runs["u"]) 
+    plt.xlabel(r"$\Lambda$") 
     plt.ylabel("u") 
     plt.title("Coverage in parameter plane") 
     plt.gca()
@@ -304,10 +304,10 @@ def _(merged, metric_ui, plt):
 @app.cell
 def _(merged, metric_ui, plt):
     plt.figure()
-    plt.scatter(merged["Lambda"], merged["value"])
-    plt.xlabel("Lambda")
+    plt.scatter(merged["lambda_"], merged["value"])
+    plt.xlabel(r"$\Lambda$")
     plt.ylabel(metric_ui.value)
-    plt.title(f"{metric_ui.value} vs Lambda")
+    plt.title(f"{metric_ui.value} vs lambda")
     plt.gca()
     return
 

@@ -25,12 +25,12 @@ def create_run(
             params_json,
             status,
             note,
-            Lambda,
+            lambda_,
             u,
             tend,
             x0,
-            rangeX,
-            rangeY,
+            range_x,
+            range_y,
             dx,
             dy
         )

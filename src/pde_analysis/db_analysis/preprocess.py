@@ -7,8 +7,8 @@ def normalize_parameters(df: pd.DataFrame, ndigits: int = 5) -> pd.DataFrame:
     if "u" in df.columns:
         df["u"] = df["u"].round(ndigits)
 
-    if "Lambda" in df.columns:
-        df["Lambda"] = df["Lambda"].round(ndigits)
+    if "lambda_" in df.columns:
+        df["lambda_"] = df["lambda_"].round(ndigits)
 
     return df
 

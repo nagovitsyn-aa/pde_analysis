@@ -1,7 +1,12 @@
 import sqlite3
 
 
-def get_or_create_experiment(conn: sqlite3.Connection, name: str) -> int:
+def get_or_create_experiment(
+    conn: sqlite3.Connection,
+    name: str,
+    description: str | None = None,
+    decay_type: str = "single",
+) -> int:
     cursor = conn.cursor()
 
     # пробуем найти
@@ -16,8 +21,8 @@ def get_or_create_experiment(conn: sqlite3.Connection, name: str) -> int:
 
     # создаём
     cursor.execute(
-        "INSERT INTO experiments (name) VALUES (?)",
-        (name,)
+        "INSERT INTO experiments (name, description, decay_type) VALUES (?, ?, ?)",
+        (name, description, decay_type)
     )
 
     return cursor.lastrowid

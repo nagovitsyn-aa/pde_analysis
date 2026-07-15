@@ -47,12 +47,12 @@ def _(db_path, mo):
             e.name AS experiment_name,
             r.file_name,
             r.dimension,
-            r.Lambda,
+            r.lambda_,
             r.u,
             r.tend,
             r.x0,
-            r.rangeX,
-            r.rangeY,
+            r.range_x,
+            r.range_y,
             r.dx,
             r.dy,
             r.status,
@@ -88,10 +88,10 @@ def _(experiment_ui, load_timeseries_dataframe, normalize_parameters):
 
 
 @app.cell(hide_code=True)
-def _(df_data, visible_L_selector, visible_u_selector):
+def _(df_data, visible_lambda_selector, visible_u_selector):
     df_filtered = df_data[
         (df_data["u"].isin(visible_u_selector.value)) &
-        (df_data["Lambda"].isin(visible_L_selector.value))
+        (df_data["lambda_"].isin(visible_lambda_selector.value))
     ]
 
     df_filtered
@@ -105,15 +105,15 @@ def _(df_filtered):
         .groupby("run_id", as_index=False)
         .agg(
             u=("u", "first"),
-            Lambda=("Lambda", "first"),
+            lambda_=("lambda_", "first"),
             tmax=("t", "max"),
         )
     )
     duplicates = (
         df_tmax
-        .groupby(["u", "Lambda"])
+        .groupby(["u", "lambda_"])
         .filter(lambda x: len(x) > 1)
-        .sort_values(["u", "Lambda", "tmax"])
+        .sort_values(["u", "lambda_", "tmax"])
     )
     duplicates
     return
@@ -162,18 +162,18 @@ def _(mode_selector):
 @app.cell
 def _(df_data, mo):
     u_vals_local = sorted(df_data["u"].dropna().unique())
-    L_vals_local = sorted(df_data["Lambda"].dropna().unique())
+    lambda_vals_local = sorted(df_data["lambda_"].dropna().unique())
 
     fixed_u_selector = mo.ui.dropdown(options=u_vals_local, value=u_vals_local[0])
-    fixed_L_selector = mo.ui.dropdown(options=L_vals_local, value=L_vals_local[0])
+    fixed_lambda_selector = mo.ui.dropdown(options=lambda_vals_local, value=lambda_vals_local[0])
 
     visible_u_selector = mo.ui.multiselect(options=u_vals_local, value=u_vals_local)
-    visible_L_selector = mo.ui.multiselect(options=L_vals_local, value=L_vals_local)
-    fixed_L_selector, fixed_u_selector, visible_u_selector, visible_L_selector
+    visible_lambda_selector = mo.ui.multiselect(options=lambda_vals_local, value=lambda_vals_local)
+    fixed_lambda_selector, fixed_u_selector, visible_u_selector, visible_lambda_selector
     return (
-        fixed_L_selector,
+        fixed_lambda_selector,
         fixed_u_selector,
-        visible_L_selector,
+        visible_lambda_selector,
         visible_u_selector,
     )
 
@@ -277,7 +277,7 @@ def _(np):
 @app.cell(hide_code=True)
 def _(
     df_filtered_selected,
-    fixed_L_selector,
+    fixed_lambda_selector,
     fixed_u_selector,
     mode_selector,
     ts_selector,
@@ -289,7 +289,7 @@ def _(
 
         if mode_selector.value == "fixed_u":
             df_tmp_2 = df_tmp_2[df_tmp_2["u"] == fixed_u_selector.value]
-            grouped_iter = df_tmp_2.groupby("Lambda")
+            grouped_iter = df_tmp_2.groupby("lambda_")
 
             for key_local, df_group in grouped_iter:
                 grouped_output.append(
@@ -301,7 +301,7 @@ def _(
                     }
                 )
         else:
-            df_tmp_2 = df_tmp_2[df_tmp_2["Lambda"] == fixed_L_selector.value]
+            df_tmp_2 = df_tmp_2[df_tmp_2["lambda_"] == fixed_lambda_selector.value]
             grouped_iter = df_tmp_2.groupby("u")
 
             for key_local, df_group in grouped_iter:
@@ -409,7 +409,7 @@ def _(
         plt.plot(
             entry_plot["t_array"],  # ось абсцисс: ν₀ t
             entry_plot["y_array"],  # ось ординат: ∫∫ dx dz |a|²
-            label=fr"${char_label}={entry_plot["label_local"]}$"
+            label=fr"${char_label}={entry_plot['label_local']}$"
         )
 
         if mode_selector.value == "fixed_u":
@@ -590,9 +590,9 @@ def _(df_filtered, np, t_amp_max_selector, t_amp_min_selector, ts_selector):
     if ts_selector.value is not None:
         _df_tmp = df_filtered[df_filtered["ts_name"] == ts_selector.value]
 
-        _grouped = _df_tmp.groupby(["u", "Lambda"])
+        _grouped = _df_tmp.groupby(["u", "lambda_"])
 
-        for (_u_val, _L_val), _df_group_2 in _grouped:
+        for (_u_val, _lambda_val), _df_group_2 in _grouped:
             _t_arr = _df_group_2["t"].values
             _y_arr = _df_group_2["value"].values
 
@@ -610,7 +610,7 @@ def _(df_filtered, np, t_amp_max_selector, t_amp_min_selector, ts_selector):
             wsat_param_data.append(
                 {
                     "u": _u_val,
-                    "Lambda": _L_val,
+                    "lambda_": _lambda_val,
                     "Wsat": _wsat_val,
                 }
             )
@@ -625,7 +625,7 @@ def _(legend_position_selector, np, plt, wsat_param_data):
     _grouped_by_lambda = _defaultdict(list)
 
     for _item in wsat_param_data:
-        _grouped_by_lambda[_item["Lambda"]].append(_item)
+        _grouped_by_lambda[_item["lambda_"]].append(_item)
 
     for _i, (_lam_val, _items) in enumerate(sorted(_grouped_by_lambda.items(), key=lambda x: x[0])):
         _items_sorted = sorted(_items, key=lambda x: x["u"])
@@ -662,7 +662,7 @@ def _(legend_position_selector, np, plt, u_max, u_min, wsat_param_data):
     _grouped_by_lambda = _defaultdict(list)
 
     for _item in wsat_param_data:
-        _grouped_by_lambda[_item["Lambda"]].append(_item)
+        _grouped_by_lambda[_item["lambda_"]].append(_item)
 
     for _i, (_lam_val, _items) in enumerate(sorted(_grouped_by_lambda.items(), key=lambda x: x[0])):
         _items_sorted = sorted(_items, key=lambda x: x["u"])
@@ -710,8 +710,8 @@ def _(legend_position_selector, np, plt, wsat_param_data):
         _grouped_by_u[_item["u"]].append(_item)
 
     for _i, (_u_val, _items) in enumerate(sorted(_grouped_by_u.items(), key=lambda x: x[0])):
-        _items_sorted = sorted(_items, key=lambda x: x["Lambda"])
-        _lam_vals = np.array([it["Lambda"] for it in _items_sorted], dtype=float)
+        _items_sorted = sorted(_items, key=lambda x: x["lambda_"])
+        _lam_vals = np.array([it["lambda_"] for it in _items_sorted], dtype=float)
         _wsat_vals = np.array([np.log(it["Wsat"]) for it in _items_sorted], dtype=float)
 
         # Основная линия с точками
@@ -755,15 +755,15 @@ def _(
     _fig, _ax = plt.subplots()
 
     _wsat_lookup = {
-        (_item["u"], _item["Lambda"]): _item["Wsat"]
+        (_item["u"], _item["lambda_"]): _item["Wsat"]
         for _item in wsat_param_data
     }
 
     _lambda_colors = {
         _lam_val: color
         for _lam_val, color in zip(
-            sorted({item["Lambda"] for item in increment_param_data}),
-            plt.cm.tab10(np.linspace(0, 1, max(1, len({item["Lambda"] for item in increment_param_data})))),
+            sorted({item["lambda_"] for item in increment_param_data}),
+            plt.cm.tab10(np.linspace(0, 1, max(1, len({item["lambda_"] for item in increment_param_data})))),
         )
     }
     _u_markers = {
@@ -779,7 +779,7 @@ def _(
 
     for _item in increment_param_data:
         _u_val = _item["u"]
-        _lam_val = _item["Lambda"]
+        _lam_val = _item["lambda_"]
         _gamma_val = _item["gamma"]
         _wsat_val = _wsat_lookup.get((_u_val, _lam_val), np.nan)
 
@@ -900,9 +900,9 @@ def _(
     if ts_selector.value is not None:
         _df_tmp = df_filtered[df_filtered["ts_name"] == ts_selector.value]
 
-        _grouped = _df_tmp.groupby(["u", "Lambda"])
+        _grouped = _df_tmp.groupby(["u", "lambda_"])
 
-        for (_u_val, _L_val), _df_group_2 in _grouped:
+        for (_u_val, _lambda_val), _df_group_2 in _grouped:
             _t_arr = _df_group_2["t"].values
             _y_arr = _df_group_2["value"].values
 
@@ -923,7 +923,7 @@ def _(
             increment_param_data.append(
                 {
                     "u": _u_val,
-                    "Lambda": _L_val,
+                    "lambda_": _lambda_val,
                     "gamma": _slope_val,
                 }
             )
@@ -949,18 +949,18 @@ def _(np):
         [18.0, 0.14413842133731422],[19.0, 0.13601207241602384],[20.0, 0.13023232911625723],
     ])
 
-    Lambda_num = data[:, 0]
+    lambda_num = data[:, 0]
     gamma_num = data[:, 1]
 
     def gamma_interp(L):
-        return np.interp(L, Lambda_num, gamma_num)
+        return np.interp(L, lambda_num, gamma_num)
 
-    return Lambda_num, gamma_interp, gamma_num
+    return lambda_num, gamma_interp, gamma_num
 
 
 @app.cell(hide_code=True)
 def _(
-    Lambda_num,
+    lambda_num,
     gamma_interp,
     gamma_num,
     increment_param_data,
@@ -1020,8 +1020,8 @@ def _(
 
         # Добавляем счетчик i для индексации цвета
         for _i, (current_u_val, _items) in enumerate(sorted(_grouped_by_u.items(), key=lambda x: x[0])):
-            _items_sorted = sorted(_items, key=lambda x: x["Lambda"])
-            _lam = np.array([it["Lambda"] for it in _items_sorted])
+            _items_sorted = sorted(_items, key=lambda x: x["lambda_"])
+            _lam = np.array([it["lambda_"] for it in _items_sorted])
             _gamma_vals = np.array([it["gamma"] for it in _items_sorted])
             _color = _colors[_i % len(_colors)]
 
@@ -1033,15 +1033,15 @@ def _(
                 label=f"u={current_u_val}",
             )
 
-        _lam_min = np.min([it["Lambda"] for it in increment_param_data])
-        _lam_max = np.max([it["Lambda"] for it in increment_param_data])
+        _lam_min = np.min([it["lambda_"] for it in increment_param_data])
+        _lam_max = np.max([it["lambda_"] for it in increment_param_data])
 
         if not normalized_selector.value:
             _lam_grid = np.linspace(_lam_min, _lam_max, 300)
             _gamma_approx = 2.0 / (1.0 + 2.0 * _lam_grid / np.pi)
             _ax.plot(_lam_grid, _gamma_approx, "k--", label=r"$2\gamma_{1Dz}^{approx}$")
-            _mask = (Lambda_num >= _lam_min) & (Lambda_num <= _lam_max)
-            _ax.plot(Lambda_num[_mask], gamma_num[_mask], color="gray", linestyle="-", label=r"$2\gamma_{1Dz}^{num}$")
+            _mask = (lambda_num >= _lam_min) & (lambda_num <= _lam_max)
+            _ax.plot(lambda_num[_mask], gamma_num[_mask], color="gray", linestyle="-", label=r"$2\gamma_{1Dz}^{num}$")
 
         _ax.set_xlabel("Λ")
 
@@ -1051,7 +1051,7 @@ def _(
     else:
         _grouped_by_lambda = _defaultdict(list)
         for _item in increment_param_data:
-            _grouped_by_lambda[_item["Lambda"]].append(_item)
+            _grouped_by_lambda[_item["lambda_"]].append(_item)
 
         # СОРТИРОВКА по возрастанию Lambda (ключ сортировки)
         for _i, (_lam_val, _items) in enumerate(sorted(_grouped_by_lambda.items(), key=lambda x: x[0])):

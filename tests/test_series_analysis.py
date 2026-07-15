@@ -17,9 +17,9 @@ from pde_analysis.processing.compute import (
 def test_filter_series_dataframe_excludes_run_ids_and_applies_selection():
     df = pd.DataFrame(
         [
-            {"run_id": 1, "u": 0.1, "Lambda": 0.5, "ts_name": "A", "t": 0.0, "value": 1.0, "series_name": "s1"},
-            {"run_id": 2, "u": 0.1, "Lambda": 0.5, "ts_name": "A", "t": 1.0, "value": 2.0, "series_name": "s1"},
-            {"run_id": 3, "u": 0.2, "Lambda": 0.6, "ts_name": "B", "t": 0.0, "value": 3.0, "series_name": "s2"},
+            {"run_id": 1, "u": 0.1, "lambda_": 0.5, "ts_name": "A", "t": 0.0, "value": 1.0, "series_name": "s1"},
+            {"run_id": 2, "u": 0.1, "lambda_": 0.5, "ts_name": "A", "t": 1.0, "value": 2.0, "series_name": "s1"},
+            {"run_id": 3, "u": 0.2, "lambda_": 0.6, "ts_name": "B", "t": 0.0, "value": 3.0, "series_name": "s2"},
         ]
     )
 
@@ -46,11 +46,11 @@ def test_compute_amplification_by_max_and_median_helpers():
 def test_compute_wsat_metrics_respects_time_window_and_ts_filter():
     df = pd.DataFrame(
         [
-            {"u": 0.1, "Lambda": 0.5, "ts_name": "A", "t": 0.0, "value": 1.0},
-            {"u": 0.1, "Lambda": 0.5, "ts_name": "A", "t": 1.0, "value": 3.0},
-            {"u": 0.1, "Lambda": 0.5, "ts_name": "A", "t": 2.0, "value": 2.0},
-            {"u": 0.1, "Lambda": 0.5, "ts_name": "B", "t": 1.0, "value": 99.0},
-            {"u": 0.2, "Lambda": 0.6, "ts_name": "A", "t": 1.0, "value": 7.0},
+            {"u": 0.1, "lambda_": 0.5, "ts_name": "A", "t": 0.0, "value": 1.0},
+            {"u": 0.1, "lambda_": 0.5, "ts_name": "A", "t": 1.0, "value": 3.0},
+            {"u": 0.1, "lambda_": 0.5, "ts_name": "A", "t": 2.0, "value": 2.0},
+            {"u": 0.1, "lambda_": 0.5, "ts_name": "B", "t": 1.0, "value": 99.0},
+            {"u": 0.2, "lambda_": 0.6, "ts_name": "A", "t": 1.0, "value": 7.0},
         ]
     )
 
@@ -62,8 +62,8 @@ def test_compute_wsat_metrics_respects_time_window_and_ts_filter():
     )
 
     assert metrics == [
-        {"u": 0.1, "Lambda": 0.5, "Wsat": pytest.approx(3.0)},
-        {"u": 0.2, "Lambda": 0.6, "Wsat": pytest.approx(7.0)},
+        {"u": 0.1, "lambda_": 0.5, "Wsat": pytest.approx(3.0)},
+        {"u": 0.2, "lambda_": 0.6, "Wsat": pytest.approx(7.0)},
     ]
 
 

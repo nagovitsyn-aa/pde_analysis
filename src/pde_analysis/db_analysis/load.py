@@ -7,7 +7,7 @@ def load_metrics_dataframe(experiment_name: str) -> pd.DataFrame:
     Загружает метрики эксперимента в wide-формате.
 
     columns:
-        run_id, u, Lambda, <metrics...>
+        run_id, u, lambda_, <metrics...>
     """
 
     conn = get_connection()
@@ -16,7 +16,7 @@ def load_metrics_dataframe(experiment_name: str) -> pd.DataFrame:
     SELECT
         r.run_id,
         r.u,
-        r.Lambda,
+        r.lambda_,
         md.name AS metric_name,
         m.value
     FROM runs r
@@ -35,7 +35,7 @@ def load_metrics_dataframe(experiment_name: str) -> pd.DataFrame:
 
     df_wide = (
         df.pivot_table(
-            index=["run_id", "u", "Lambda"],
+            index=["run_id", "u", "lambda_"],
             columns="metric_name",
             values="value",
         )

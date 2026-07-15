@@ -59,23 +59,23 @@ def _(np):
         [18.0, 0.14413842133731422],[19.0, 0.13601207241602384],[20.0, 0.13023232911625723],
     ])
 
-    Lambda_num = data[:, 0]
+    lambda_num = data[:, 0]
     gamma_num = data[:, 1]
 
-    Lambda_num, gamma_num
-    return Lambda_num, gamma_num
+    lambda_num, gamma_num
+    return lambda_num, gamma_num
 
 
 @app.cell
-def _(Lambda_range_ui, df, u_range_ui, visible_Lambda_ui, visible_u_ui):
+def _(lambda_range_ui, df, u_range_ui, visible_lambda_ui, visible_u_ui):
     df_filtered = df[
         (df["u"].between(*u_range_ui.value)) &
-        (df["Lambda"].between(*Lambda_range_ui.value))
+        (df["lambda_"].between(*lambda_range_ui.value))
     ]
 
     df_filtered = df_filtered[
         (df_filtered["u"].isin(visible_u_ui.value)) &
-        (df_filtered["Lambda"].isin(visible_Lambda_ui.value))
+        (df_filtered["lambda_"].isin(visible_lambda_ui.value))
     ]
 
     df_filtered
@@ -103,7 +103,7 @@ def _(mo):
 @app.cell
 def _(df, mo):
     u_values = sorted(df["u"].dropna().unique())
-    Lambda_values = sorted(df["Lambda"].dropna().unique())
+    lambda_values = sorted(df["lambda_"].dropna().unique())
 
     visible_u_ui = mo.ui.multiselect(
         options=u_values,
@@ -111,14 +111,14 @@ def _(df, mo):
         label="visible u",
     )
 
-    visible_Lambda_ui = mo.ui.multiselect(
-        options=Lambda_values,
-        value=Lambda_values,
-        label="visible Lambda",
+    visible_lambda_ui = mo.ui.multiselect(
+        options=lambda_values,
+        value=lambda_values,
+        label="visible lambda",
     )
 
-    visible_u_ui, visible_Lambda_ui
-    return visible_Lambda_ui, visible_u_ui
+    visible_u_ui, visible_lambda_ui
+    return visible_lambda_ui, visible_u_ui
 
 
 @app.cell
@@ -131,16 +131,16 @@ def _(df, mo):
         label="u range",
     )
 
-    Lambda_range_ui = mo.ui.range_slider(
-        start=float(df["Lambda"].min()),
-        stop=float(df["Lambda"].max()),
+    lambda_range_ui = mo.ui.range_slider(
+        start=float(df["lambda_"].min()),
+        stop=float(df["lambda_"].max()),
         step=0.1,
-        value=(float(df["Lambda"].min()), float(df["Lambda"].max())),
-        label="Lambda range",
+        value=(float(df["lambda_"].min()), float(df["lambda_"].max())),
+        label="lambda range",
     )
 
-    u_range_ui, Lambda_range_ui
-    return Lambda_range_ui, u_range_ui
+    u_range_ui, lambda_range_ui
+    return lambda_range_ui, u_range_ui
 
 
 @app.cell
@@ -162,9 +162,9 @@ def _(mo):
 
 
 @app.cell
-def _(Lambda_num, gamma_num, np):
+def _(lambda_num, gamma_num, np):
     def gamma_interp(L):
-        return np.interp(L, Lambda_num, gamma_num)
+        return np.interp(L, lambda_num, gamma_num)
 
     return (gamma_interp,)
 
@@ -190,10 +190,10 @@ def _(
         grouped = list(df_filtered.groupby("u"))
 
         for i, (u, subdf) in enumerate(grouped):
-            subdf = subdf.sort_values("Lambda")
+            subdf = subdf.sort_values("lambda_")
             color = colors[i % len(colors)]
 
-            lam = subdf["Lambda"].values
+            lam = subdf["lambda_"].values
 
             if "ZtoZ0" in subdf.columns:
                 ax.plot(
@@ -213,15 +213,15 @@ def _(
                     color=color,
                 )
 
-        lam_min = float(df_filtered["Lambda"].min())
-        lam_max = float(df_filtered["Lambda"].max())
+        lam_min = float(df_filtered["lambda_"].min())
+        lam_max = float(df_filtered["lambda_"].max())
 
-        Lambda_grid = np.linspace(lam_min, lam_max, 300)
+        lambda_grid = np.linspace(lam_min, lam_max, 300)
 
-        analytic = 1.0 / (1.0 + 2.0 * Lambda_grid / np.pi) ** 2
+        analytic = 1.0 / (1.0 + 2.0 * lambda_grid / np.pi) ** 2
 
         ax.plot(
-            Lambda_grid,
+            lambda_grid,
             analytic,
             linestyle="--",
             color="black",
@@ -229,11 +229,11 @@ def _(
             label=r"$\frac{1}{(1+2\Lambda/\pi)^2}$",
         )
 
-        gamma_grid = gamma_interp(Lambda_grid)
+        gamma_grid = gamma_interp(lambda_grid)
         numeric = (gamma_grid / 2.0) ** 2
 
         ax.plot(
-            Lambda_grid,
+            lambda_grid,
             numeric,
             linestyle="-",
             color="black",
@@ -242,12 +242,12 @@ def _(
         )
 
         ax.set_xlim(lam_min, lam_max)
-        ax.set_xlabel("Lambda")
+        ax.set_xlabel(r"$\Lambda$")
 
     else:
-        grouped = list(df_filtered.groupby("Lambda"))
+        grouped = list(df_filtered.groupby("lambda_"))
 
-        for i, (Lambda, subdf) in enumerate(grouped):
+        for i, (lambda_, subdf) in enumerate(grouped):
             subdf = subdf.sort_values("u")
             color = colors[i % len(colors)]
 
@@ -257,7 +257,7 @@ def _(
                     subdf["ZtoZ0"].values,
                     linestyle="-",
                     color=color,
-                    label=f"Λ={Lambda}",
+                    label=f"\u039b={lambda_}",
                 )
 
             if predictor_ui.value in subdf.columns:
