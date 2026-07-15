@@ -6,7 +6,8 @@ import yaml
 from pde_analysis.pipeline.add_run import add_run_from_h5
 
 
-def load_folder(folder_path, experiment_name, dimension, recursive=True):
+def load_folder(folder_path, experiment_name, dimension, recursive=True,
+                description=None, decay_type="single", file_prefix=None):
     folder = Path(folder_path)
 
     if not folder.exists():
@@ -26,6 +27,9 @@ def load_folder(folder_path, experiment_name, dimension, recursive=True):
                 experiment_name=experiment_name,
                 h5_path=f,
                 dimension=dimension,
+                description=description,
+                decay_type=decay_type,
+                file_prefix=file_prefix,
             )
 
             if run_id is None:
@@ -82,6 +86,9 @@ def main():
     folder_path = args.folder or config.get("folder")
     experiment_name = args.experiment or config.get("experiment")
     dimension = args.dimension or config.get("dimension")
+    description = config.get("description")
+    decay_type = config.get("decay_type", "single")
+    file_prefix = config.get("file_prefix")
 
     if args.recursive:
         recursive = True
@@ -102,6 +109,9 @@ def main():
         experiment_name=experiment_name,
         dimension=dimension,
         recursive=recursive,
+        description=description,
+        decay_type=decay_type,
+        file_prefix=file_prefix,
     )
 
 

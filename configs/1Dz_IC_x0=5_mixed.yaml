@@ -1,0 +1,7 @@
+folder: C:\YandexDisk\Ioffe\workspace\one_decay\2D\data\sol/1D_IC_x0=5
+experiment: 1Dz_IC_x0=5_mixed
+dimension: 2D
+description: 2D, НУ из 1D решения, LSODA+RK+Auto
+decay_type: single
+file_prefix: 1D_IC_x0=5
+recursive: true

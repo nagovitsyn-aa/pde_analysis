@@ -1,0 +1,7 @@
+folder: C:\YandexDisk\Ioffe\workspace\one_decay\2D\data\sol/1gauss_default_IC
+experiment: 1gauss_default_IC_x0=0_LSODA
+dimension: 2D
+description: 2D, одна волна + шум, LSODA
+decay_type: single
+file_prefix: 1gauss_default_IC
+recursive: true

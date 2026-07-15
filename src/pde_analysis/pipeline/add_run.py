@@ -24,9 +24,29 @@ def add_run_from_h5(
     experiment_name: str,
     h5_path: str | Path,
     dimension: str,
+    description: str | None = None,
+    decay_type: str = "single",
+    file_prefix: str | None = None,
 ):
     """
     Главная функция добавления одного расчёта в БД.
+
+    Параметры
+    ---------
+    experiment_name : str
+        Имя серии расчётов.
+    h5_path : str | Path
+        Путь к HDF5-файлу.
+    dimension : str
+        Размерность ('2D', '1Dx', '1Dz').
+    description : str | None
+        Описание серии (сохраняется в experiments.description).
+    decay_type : str
+        Тип распада: 'single', 'double', 'absolute'.
+    file_prefix : str | None
+        Префикс для file_name в БД (чтобы избежать коллизий同名ных .h5
+        из разных папок). Например 'default_IC'. Итоговое имя:
+        "{prefix}/{original_name}".
 
     Сохраняет:
       - параметры расчёта
@@ -45,6 +65,8 @@ def add_run_from_h5(
         raise FileNotFoundError(f"HDF5 file not found: {h5_path}")
 
     file_name = h5_path.name
+    if file_prefix:
+        file_name = f"{file_prefix}/{file_name}"
     existing = run_exists(conn, file_name)
 
     if existing:
@@ -65,7 +87,11 @@ def add_run_from_h5(
     # --- 3. запись в БД ---
     try:
         # 3.1 эксперимент
-        experiment_id = get_or_create_experiment(conn, experiment_name)
+        experiment_id = get_or_create_experiment(
+            conn, experiment_name,
+            description=description,
+            decay_type=decay_type,
+        )
 
         # 3.2 run
         run_id = create_run(

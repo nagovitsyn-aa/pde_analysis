@@ -1,0 +1,7 @@
+folder: C:\YandexDisk\Ioffe\workspace\one_decay\2D\data\sol/default_IC_x0=5
+experiment: default_IC_x0=5_LSODA
+dimension: 2D
+description: 2D, два волновых пакета, LSODA, x0=5
+decay_type: single
+file_prefix: default_IC_x0=5
+recursive: true
