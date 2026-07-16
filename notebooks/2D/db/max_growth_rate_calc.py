@@ -824,7 +824,9 @@ def _(
         _fit_vals = _fit_slope * _x_arr + _fit_intercept
         _ss_res = np.sum((_y_arr - _fit_vals) ** 2)
         _ss_tot = np.sum((_y_arr - np.mean(_y_arr)) ** 2)
+        _n = len(_x_arr)
         _r_squared = 1.0 - _ss_res / _ss_tot if _ss_tot > 0 else np.nan
+        _adj_r_squared = 1.0 - (1.0 - _r_squared) * (_n - 1) / (_n - 2) if _ss_tot > 0 and _n > 2 else np.nan
         _x_fit = np.linspace(np.min(_x_arr), np.max(_x_arr), 200)
         _y_fit = _fit_slope * _x_fit + _fit_intercept
         _ax.plot(_x_fit, _y_fit, color="black", linewidth=2, linestyle="--")
@@ -834,13 +836,38 @@ def _(
             (
                 f"slope = {_fit_slope:.3f} \n"
                 f"intercept = {_fit_intercept:.3f} \n"
-                rf"$R^2$ = {_r_squared:.3f}"
+                rf"$R^2_{{adj}}$ = {_adj_r_squared:.3f}"
             ),
             transform=_ax.transAxes,
             va="top",
             ha="left",
             fontsize=10,
             bbox={"boxstyle": "round", "facecolor": "white", "alpha": 0.8},
+        )
+
+        # Fixed slope = 1 fit
+        _intercept_fixed = np.mean(_y_arr - _x_arr)
+        _y_fit_fixed = _x_arr + _intercept_fixed
+        _ss_res_fixed = np.sum((_y_arr - _y_fit_fixed) ** 2)
+        _r_squared_fixed = 1.0 - _ss_res_fixed / _ss_tot if _ss_tot > 0 else np.nan
+        _adj_r_squared_fixed = 1.0 - (1.0 - _r_squared_fixed) * (_n - 1) / (_n - 2) if _ss_tot > 0 and _n > 2 else np.nan
+
+        _y_fit_line = _x_fit + _intercept_fixed
+        _ax.plot(_x_fit, _y_fit_line, color="gray", linewidth=2, linestyle="--", alpha=0.5)
+
+        _ax.text(
+            0.02,
+            0.78,
+            (
+                "slope = 1 (fixed) \n"
+                f"intercept = {_intercept_fixed:.3f} \n"
+                rf"$R^2_{{adj}}$ = {_adj_r_squared_fixed:.3f}"
+            ),
+            transform=_ax.transAxes,
+            va="top",
+            ha="left",
+            fontsize=10,
+            bbox={"boxstyle": "round", "facecolor": "0.95", "alpha": 0.8},
         )
 
     if gamma_eff_mode_selector.value == "gamma_num_2D":
@@ -867,13 +894,15 @@ def _(
         for u, marker in sorted(_u_markers.items())
     ]
 
+    _col_lam = 2 if len(_lambda_handles) > 6 else 1
     _first_leg = _ax.legend(handles=_lambda_handles, loc='upper left',
                              bbox_to_anchor=(1.02, 1), title=r'$\Lambda$',
-                             framealpha=0.9)
+                             ncol=_col_lam, framealpha=0.9)
     _ax.add_artist(_first_leg)
+    _col = 2 if len(_u_handles) > 6 else 1
     _ax.legend(handles=_u_handles, loc='lower left',
                bbox_to_anchor=(1.02, 0), title=r'$u$',
-               framealpha=0.9)
+               ncol=_col, framealpha=0.9)
 
     _fig
     return
