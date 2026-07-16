@@ -1,10 +1,10 @@
 import marimo
 
-__generated_with = "0.23.2"
-app = marimo.App(layout_file="layouts/max_growth_rate_calc.grid.json")
+__generated_with = "0.23.13"
+app = marimo.App()
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _():
     import marimo as mo
     import matplotlib.pyplot as plt
@@ -116,15 +116,13 @@ def _(df_filtered):
         .sort_values(["u", "lambda_", "tmax"])
     )
     duplicates
-    return
+    return (df_tmax,)
 
 
 @app.cell(hide_code=True)
-def _(df_filtered):
-    excluded_run_ids = [29, 17, 116, 20, 21,7,45,46,47, 48, 49, 50, 51]
-    df_filtered_selected = df_filtered[
-        ~df_filtered["run_id"].isin(excluded_run_ids)
-    ]
+def _(df_filtered, df_tmax, min_tmax_selector):
+    run_ids_keep = set(df_tmax.loc[df_tmax["tmax"] >= min_tmax_selector.value, "run_id"])
+    df_filtered_selected = df_filtered[df_filtered["run_id"].isin(run_ids_keep)]
     return (df_filtered_selected,)
 
 
@@ -134,20 +132,48 @@ def _(df_data, mo):
 
     ts_selector = mo.ui.dropdown(
         options=ts_options_local,
-        value=ts_options_local[0] if ts_options_local else None,
+        value=ts_options_local[1] if ts_options_local else None,
     )
     ts_selector
     return (ts_selector,)
 
 
 @app.cell
-def _(mo):
+def _(df_data, mo):
     mode_selector = mo.ui.radio(
         options=["fixed_u", "fixed_Lambda"],
         value="fixed_u",
+        label="Режим",
     )
-    mode_selector
-    return (mode_selector,)
+
+    u_vals_local = sorted(float(v) for v in df_data["u"].dropna().unique())
+    lambda_vals_local = sorted(float(v) for v in df_data["lambda_"].dropna().unique())
+
+    fixed_u_selector = mo.ui.dropdown(
+        options=u_vals_local, value=u_vals_local[0],
+        label="Фикс. u (меняется Λ)",
+    )
+    fixed_lambda_selector = mo.ui.dropdown(
+        options=lambda_vals_local, value=lambda_vals_local[0],
+        label="Фикс. Λ (меняется u)",
+    )
+
+    visible_u_selector = mo.ui.multiselect(
+        options=u_vals_local, value=u_vals_local,
+        label="Видимые u",
+    )
+    visible_lambda_selector = mo.ui.multiselect(
+        options=lambda_vals_local, value=lambda_vals_local,
+        label="Видимые Λ",
+    )
+    mode_selector, fixed_lambda_selector, fixed_u_selector, visible_u_selector, visible_lambda_selector
+    return (
+        fixed_lambda_selector,
+        fixed_u_selector,
+        mode_selector,
+        visible_lambda_selector,
+        visible_u_selector,
+    )
 
 
 @app.cell
@@ -159,25 +185,6 @@ def _(mode_selector):
     return (char_label,)
 
 
-@app.cell
-def _(df_data, mo):
-    u_vals_local = sorted(df_data["u"].dropna().unique())
-    lambda_vals_local = sorted(df_data["lambda_"].dropna().unique())
-
-    fixed_u_selector = mo.ui.dropdown(options=u_vals_local, value=u_vals_local[0])
-    fixed_lambda_selector = mo.ui.dropdown(options=lambda_vals_local, value=lambda_vals_local[0])
-
-    visible_u_selector = mo.ui.multiselect(options=u_vals_local, value=u_vals_local)
-    visible_lambda_selector = mo.ui.multiselect(options=lambda_vals_local, value=lambda_vals_local)
-    fixed_lambda_selector, fixed_u_selector, visible_u_selector, visible_lambda_selector
-    return (
-        fixed_lambda_selector,
-        fixed_u_selector,
-        visible_lambda_selector,
-        visible_u_selector,
-    )
-
-
 @app.cell(hide_code=True)
 def _(mo):
     scale_selector = mo.ui.radio(options=["linear", "log"], value="log")
@@ -187,17 +194,19 @@ def _(mo):
 
     tmin_selector = mo.ui.number(value=0.0, step=0.1, label="t_min")
     tmax_selector = mo.ui.number(value=15.0, label="t_max")
+    min_tmax_selector = mo.ui.number(value=5.0, step=0.5, label="min t_max (фильтр расчётов)")
 
     legend_position_selector = mo.ui.radio(
         options=["inside", "right", "outside"],
         value="inside",
         label="legend position",
     )
-    legend_position_selector,min_len_selector,max_len_selector,scale_selector,tmin_selector,tmax_selector
+    legend_position_selector,min_len_selector,max_len_selector,min_tmax_selector,scale_selector,tmin_selector,tmax_selector
     return (
         legend_position_selector,
         max_len_selector,
         min_len_selector,
+        min_tmax_selector,
         scale_selector,
         tmax_selector,
         tmin_selector,
@@ -745,9 +754,9 @@ def _(legend_position_selector, np, plt, wsat_param_data):
 @app.cell(hide_code=True)
 def _(
     gamma_eff_mode_selector,
+    gamma_interp,
     gamma_x_interp,
     increment_param_data,
-    legend_position_selector,
     np,
     plt,
     wsat_param_data,
@@ -785,6 +794,8 @@ def _(
 
         if gamma_eff_mode_selector.value == "gamma_num_2D":
             _gamma_eff_val = _gamma_val / 2.0
+        elif gamma_eff_mode_selector.value == "gamma_1Dz":
+            _gamma_eff_val = gamma_interp(_lam_val) / 2.0
         else:
             _gamma_eff_val = _gamma_val / gamma_x_interp(_u_val)
 
@@ -834,6 +845,8 @@ def _(
 
     if gamma_eff_mode_selector.value == "gamma_num_2D":
         _x_label = r"$2\pi / u^2 \cdot \gamma^2_{2D} (u,\Lambda)$"
+    elif gamma_eff_mode_selector.value == "gamma_1Dz":
+        _x_label = r"$2\pi / u^2 \cdot \gamma^2_{1Dz}(\Lambda)$"
     else:
         _x_label = r"$2\pi / u^2 \cdot (\gamma_{2D}(u,\Lambda)/\gamma_{1Dx}(u))^2$"
 
@@ -841,12 +854,26 @@ def _(
     _ax.set_ylabel(r"$\log(W_{sat})$")
     _ax.grid(True)
 
-    if legend_position_selector.value == "inside":
-        _ax.legend()
-    elif legend_position_selector.value == "right":
-        _ax.legend(loc="center left", bbox_to_anchor=(1, 0.5))
-    else:
-        _ax.legend(loc="upper left", bbox_to_anchor=(1.05, 1))
+    from matplotlib.lines import Line2D
+
+    _lambda_handles = [
+        Line2D([0], [0], marker='o', color='w', markerfacecolor=color,
+               markersize=8, label=rf'$\Lambda={lam}$')
+        for lam, color in sorted(_lambda_colors.items())
+    ]
+    _u_handles = [
+        Line2D([0], [0], marker=marker, color='gray', linestyle='None',
+               markersize=8, label=rf'$u={u}$')
+        for u, marker in sorted(_u_markers.items())
+    ]
+
+    _first_leg = _ax.legend(handles=_lambda_handles, loc='upper left',
+                             bbox_to_anchor=(1.02, 1), title=r'$\Lambda$',
+                             framealpha=0.9)
+    _ax.add_artist(_first_leg)
+    _ax.legend(handles=_u_handles, loc='lower left',
+               bbox_to_anchor=(1.02, 0), title=r'$u$',
+               framealpha=0.9)
 
     _fig
     return
@@ -872,8 +899,8 @@ def _(mo):
     )
 
     gamma_eff_mode_selector = mo.ui.radio(
-        options=["gamma_num_2D", "gamma2D_per_gamma1Dx"],
-        value="gamma_num_2D",
+        options=["gamma_num_2D", "gamma2D_per_gamma1Dx", "gamma_1Dz"],
+        value="gamma_1Dz",
         label="gamma_eff mode",
     )
     normalized_selector, param_mode_selector, normalization_type_selector, gamma_eff_mode_selector
@@ -955,15 +982,15 @@ def _(np):
     def gamma_interp(L):
         return np.interp(L, lambda_num, gamma_num)
 
-    return lambda_num, gamma_interp, gamma_num
+    return gamma_interp, gamma_num, lambda_num
 
 
 @app.cell(hide_code=True)
 def _(
-    lambda_num,
     gamma_interp,
     gamma_num,
     increment_param_data,
+    lambda_num,
     legend_position_selector,
     normalization_type_selector,
     normalized_selector,
