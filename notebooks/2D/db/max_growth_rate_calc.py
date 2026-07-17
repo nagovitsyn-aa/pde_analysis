@@ -232,7 +232,7 @@ def _(np):
         max_len_internal,
         tmin_internal,
         tmax_internal,
-        peak_number=2,  # New parameter: which peak to select (1=first, 2=second, etc.)
+        peak_number=1,  # New parameter: which peak to select (1=first, 2=second, etc.)
         half_width=0.1,  # Half-width around the peak for t_start and t_end
     ):
         mask_internal = (
@@ -386,8 +386,7 @@ def _(
             min_len_selector.value,
             max_len_selector.value,
             tmin_selector.value,
-            tmax_selector.value,
-            peak_number=2
+            tmax_selector.value
         )
 
         fit_output.append(
